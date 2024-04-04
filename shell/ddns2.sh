@@ -31,7 +31,7 @@ check_root(){
 # 开始安装DDNS
 install_ddns(){
     if [ ! -f "/usr/bin/ddns" ]; then
-        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns2.sh && chmod +x /usr/bin/ddns
+        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns.sh && chmod +x /usr/bin/ddns
     fi
     mkdir -p /etc/DDNS
     cat <<'EOF' > /etc/DDNS/DDNS
@@ -183,14 +183,14 @@ set_telegram_settings(){
     echo -e "${Tip}开始配置Telegram通知设置..."
     echo
 
-    echo -e "${Tip}请输入您的Telegram Bot Token"
+    echo -e "${Tip}请输入您的Telegram Bot Token，留空则跳过"
     read -rp "Token: " Token
     if [ -n "$Token" ]; then
         Telegram_Bot_Token="$Token"
     fi
     echo
 
-    echo -e "${Tip}请输入您的Telegram Chat ID"
+    echo -e "${Tip}请输入您的Telegram Chat ID，留空则跳过"
     read -rp "Chat ID: " Chat_ID
     if [ -n "$Chat_ID" ]; then
         Telegram_Chat_ID="$Chat_ID"
