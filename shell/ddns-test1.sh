@@ -377,8 +377,5 @@ menu(){
     esac
 }
 
-# 检查是否为root用户
 check_root
-
-# 检查是否安装DDNS
 check_ddns_install
