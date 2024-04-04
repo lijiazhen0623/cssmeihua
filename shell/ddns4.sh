@@ -31,7 +31,7 @@ check_root(){
 # 开始安装DDNS
 install_ddns(){
     if [ ! -f "/usr/bin/ddns" ]; then
-        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns.sh && chmod +x /usr/bin/ddns
+        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns4.sh && chmod +x /usr/bin/ddns
     fi
     mkdir -p /etc/DDNS
     cat <<'EOF' > /etc/DDNS/DDNS
@@ -55,7 +55,7 @@ curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/
      --data "{\"type\":\"AAAA\",\"name\":\"$Domain\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
 
 # 发送Telegram通知
-if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" ]]; then
+if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && ("$Public_IPv4" != "$Old_Public_IPv4" || "$Public_IPv6" != "$Old_Public_IPv6") ]]; then
     send_telegram_notification
 fi
 EOF
@@ -78,6 +78,8 @@ InterFace=($(ip link show | awk -F': ' '{print $2}' | grep -E "$regex_pattern" |
 
 Public_IPv4=""
 Public_IPv6=""
+Old_Public_IPv4=""
+Old_Public_IPv6=""
 
 for i in "${InterFace[@]}"; do
     ipv4=$(curl -s4m8 --interface "$i" api64.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
@@ -312,29 +314,6 @@ set_telegram_settings(){
     sed -i 's/^#\?Telegram_Bot_Token=".*"/Telegram_Bot_Token="'"${TELEGRAM_BOT_TOKEN}"'"/g' /etc/DDNS/.config
     sed -i 's/^#\?Telegram_Chat_ID=".*"/Telegram_Chat_ID="'"${TELEGRAM_CHAT_ID}"'"/g' /etc/DDNS/.config
 }
-
-# 检查是否需要配置 Telegram 设置
-check_telegram_settings(){
-    if [[ -f "/etc/DDNS/.config" ]]; then
-        source /etc/DDNS/.config
-        if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" ]]; then
-            skip_telegram_settings=true
-        fi
-    fi
-}
-
-# 检查是否需要配置 Telegram 设置
-check_telegram_settings
-
-if [[ ! $skip_telegram_settings ]]; then
-    echo -e "${Tip}是否要配置 Telegram 通知设置？[Y/n]"
-    read -rp "选择 (默认为 Y): " choice
-    if [[ $choice =~ ^[Nn]$ ]]; then
-        echo -e "${Tip}已跳过 Telegram 通知设置"
-    else
-        set_telegram_settings
-    fi
-fi
 
 # 检查是否安装DDNS
 check_ddns_install(){
