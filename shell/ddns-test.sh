@@ -98,7 +98,7 @@ Zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$Root_
      -H "X-Auth-Email: $Email" \
      -H "X-Auth-Key: $Api_key" \
      -H "Content-Type: application/json" \
-     | grep -Po '(?<="id":")[^"]*' | head -1)
+     | grep -Po '(?<="id":")[source /etc/DDNS/.config
 
 # 获取IPv4 DNS记录ID
 DNS_IDv4=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=A&name=$Domain" \
@@ -120,9 +120,74 @@ send_telegram_notification(){
         -d "chat_id=$Telegram_Chat_ID" \
         -d "text=DDNS 更新：$Domain 的 IP 地址已更新为 $Public_IPv4 (IPv4) 和 $Public_IPv6 (IPv6)。"
 }
-EOF
-    echo -e "${Info}DDNS 安装完成！"
+
+# 检查是否需要发送Telegram通知
+check_send_telegram_notification(){
+    if [[ -n "$Old_IPv4" && "$Old_IPv4" != "$Public_IPv4" ]] || [[ -n "$Old_IPv6" && "$Old_IPv6" != "$Public_IPv6" ]]; then
+        send_telegram_notification
+    fi
+}
+
+# 获取之前的IP地址
+get_previous_ip(){
+    if [[ -f "/etc/DDNS/previous_ip" ]]; then
+        Old_IPv4=$(sed -n '1p' /etc/DDNS/previous_ip)
+        Old_IPv6=$(sed -n '2p' /etc/DDNS/previous_ip)
+    fi
+}
+
+# 更新之前的IP地址
+update_previous_ip(){
+    echo "$Public_IPv4" >/etc/DDNS/previous_ip
+    echo "$Public_IPv6" >>/etc/DDNS/previous_ip
+}
+
+# 检查是否需要配置 Telegram 设置
+check_telegram_settings(){
+    if [[ -f "/etc/DDNS/.config" ]]; then
+        source /etc/DDNS/.config
+        if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" ]]; then
+            skip_telegram_settings=true
+        fi
+    fi
+}
+
+# 检查是否需要配置 Telegram 设置
+check_telegram_settings
+
+if [[ ! $skip_telegram_settings ]]; then
+    echo -e "${Tip}是否要配置 Telegram 通知设置？[Y/n]"
+    read -rp "选择 (默认为 Y): " choice
+    if [[ $choice =~ ^[Nn]$ ]]; then
+        echo -e "${Tip}已跳过 Telegram 通知设置"
+    else
+        set_telegram_settings
+    fi
+fi
+
+# 检查是否安装DDNS
+check_ddns_install(){
+    if [ ! -f "/etc/DDNS/.config" ]; then
+        cop_info
+        echo -e "${Tip}DDNS 未安装，现在开始安装..."
+        echo
+        install_ddns
+        set_cloudflare_api
+        set_domain
+        run_ddns
+        echo -e "${Info}执行 ${GREEN}ddns${NC} 可呼出菜单！"
+    else
+        cop_info
+        check_ddns_status
+        if [[ "$ddns_status" == "running" ]]; then
+            echo -e "${Info}DDNS：${GREEN}已安装${NC} 并 ${GREEN}已启动${NC}"
+        else
+            echo -e "${Tip}DDNS：${GREEN}已安装${NC} 但 ${RED}未启动${NC}"
+            echo -e "${Tip}请选择 ${GREEN}4${NC} 重新配置 Cloudflare Api 或 ${GREEN}5${NC} 配置 Telegram 通知"
+        fi
     echo
+    go_ahead
+    fi
 }
 
 # 检查 DDNS 状态
@@ -200,7 +265,7 @@ set_cloudflare_api(){
 
     echo -e "${Tip}请输入您的Cloudflare邮箱"
     read -rp "邮箱: " EMail
-    if [ -z "$EMail" ]; then
+    if [ -z "$EMail" ];
         echo -e "${Error}未输入邮箱，无法执行操作！"
         exit 1
     else
