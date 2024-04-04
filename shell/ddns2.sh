@@ -153,7 +153,7 @@ go_ahead(){
             echo -e "${Info}DDNS 已卸载！"
             echo
         ;;
-        3)
+        3) 
             set_domain
             restart_ddns
             sleep 2
@@ -309,5 +309,30 @@ check_ddns_install(){
     fi
 }
 
+# 第一次运行时设置Telegram通知
+first_run_settings(){
+    if [ ! -f "/etc/DDNS/.config" ]; then
+        cop_info
+        echo -e "${Tip}DDNS 未安装，现在开始安装..."
+        echo
+        install_ddns
+        set_cloudflare_api
+        set_domain
+        run_ddns
+        echo -e "${Info}执行 ${GREEN}ddns${NC} 可呼出菜单！"
+        echo
+        read -p "是否配置 Telegram 通知设置？[Y/n]: " choice
+        case "$choice" in
+            y|Y|"")
+                set_telegram_settings
+                ;;
+            *)
+                ;;
+        esac
+    else
+        check_ddns_install
+    fi
+}
+
 check_root
-check_ddns_install
+first_run_settings
