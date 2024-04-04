@@ -12,12 +12,12 @@ Error="${RED}[错误]${NC}"
 Tip="${YELLOW}[提示]${NC}"
 
 cop_info(){
-clear
-echo -e "${GREEN}######################################
+    clear
+    echo -e "${GREEN}######################################
 #            ${RED}DDNS 一键脚本           ${GREEN}#
 #             作者: ${YELLOW}末晨             ${GREEN}#
 ######################################${NC}"
-echo
+    echo
 }
 
 # 检查是否为root用户
@@ -31,7 +31,7 @@ check_root(){
 # 开始安装DDNS
 install_ddns(){
     if [ ! -f "/usr/bin/ddns" ]; then
-        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns3.sh && chmod +x /usr/bin/ddns
+        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns4.sh && chmod +x /usr/bin/ddns
     fi
     mkdir -p /etc/DDNS
     cat <<'EOF' > /etc/DDNS/DDNS
@@ -113,8 +113,8 @@ send_telegram_notification(){
 # 检查 DDNS 状态
 check_ddns_status(){
     if [[ -f "/etc/systemd/system/ddns.timer" ]]; then
-        STatus=$(systemctl status ddns.timer | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
-        if [[ $STatus =~ "waiting"|"running" ]]; then
+        status=$(systemctl status ddns.timer | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
+        if [[ $status == "waiting" || $status == "running" ]]; then
             ddns_status=running
         else
             ddns_status=dead
@@ -136,7 +136,7 @@ go_ahead(){
     until [[ "$option" =~ ^[0-5]$ ]]; do
         echo -e "${Error}请输入正确的数字 [0-5]"
         echo
-        exit 1
+        return 1
     done
     case "$option" in
         0)
