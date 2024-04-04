@@ -40,6 +40,10 @@ install_ddns(){
 # 引入环境变量文件
 source /etc/DDNS/.config
 
+# 保存旧的 IP 地址
+Old_Public_IPv4="$Public_IPv4"
+Old_Public_IPv6="$Public_IPv6"
+
 # 更新IPv4 DNS记录
 curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv4" \
      -H "X-Auth-Email: $Email" \
@@ -58,6 +62,10 @@ curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/
 if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && ("$Public_IPv4" != "$Old_Public_IPv4" || "$Public_IPv6" != "$Old_Public_IPv6") ]]; then
     send_telegram_notification
 fi
+
+# 保存当前的 IP 地址到配置文件
+echo "Public_IPv4=\"$Public_IPv4\"" >/etc/DDNS/.config
+echo "Public_IPv6=\"$Public_IPv6\"" >>/etc/DDNS/.config
 EOF
     cat <<'EOF' > /etc/DDNS/.config
 Domain="your_domain.com"		# 你要解析的域名
