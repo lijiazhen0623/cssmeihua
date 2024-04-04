@@ -59,6 +59,7 @@ if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" ]]; then
     send_telegram_notification
 fi
 EOF
+
     cat <<'EOF' > /etc/DDNS/.config
 Domain="your_domain.com"		# 你要解析的域名
 Email="your_email@gmail.com"     # 你在Cloudflare注册的邮箱
@@ -98,7 +99,7 @@ Zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$Root_
      -H "X-Auth-Email: $Email" \
      -H "X-Auth-Key: $Api_key" \
      -H "Content-Type: application/json" \
-     | grep -Po '(?<="id":")[source /etc/DDNS/.config
+     | grep -Po '(?<="id":")[^"]*')
 
 # 获取IPv4 DNS记录ID
 DNS_IDv4=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=A&name=$Domain" \
@@ -126,6 +127,10 @@ check_send_telegram_notification(){
     if [[ -n "$Old_IPv4" && "$Old_IPv4" != "$Public_IPv4" ]] || [[ -n "$Old_IPv6" && "$Old_IPv6" != "$Public_IPv6" ]]; then
         send_telegram_notification
     fi
+}
+EOF
+    echo -e "${Info}DDNS 安装完成!”
+    echo
 }
 
 # 获取之前的IP地址
