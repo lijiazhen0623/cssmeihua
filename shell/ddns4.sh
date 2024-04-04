@@ -28,124 +28,10 @@ check_root(){
     fi
 }
 
-# 设置解析的域名
-set_domain(){
-    echo -e "${Tip}请输入您解析的域名"
-    read -rp "域名: " DOmain
-    if [ -z "$DOmain" ]; then
-        echo -e "${Error}未输入域名，无法执行操作！"
-        exit 1
-    else
-        DOMAIN="$DOmain"
-    fi
-    echo -e "${Info}你的域名：${RED_ground}${DOMAIN}${NC}"
-    echo
-
-    sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
-}
-
-# 设置Cloudflare Api
-set_cloudflare_api(){
-    echo -e "${Tip}开始配置CloudFlare API..."
-    echo
-
-    echo -e "${Tip}请输入您的Cloudflare邮箱"
-    read -rp "邮箱: " EMail
-    if [ -z "$EMail" ]; then
-        echo -e "${Error}未输入邮箱，无法执行操作！"
-        exit 1
-    else
-        EMAIL="$EMail"
-    fi
-    echo -e "${Info}你的邮箱：${RED_ground}${EMAIL}${NC}"
-    echo
-
-    echo -e "${Tip}请输入您的Cloudflare API密钥"
-    read -rp "密钥: " Api_Key
-    if [ -z "Api_Key" ]; then
-        echo -e "${Error}未输入密钥，无法执行操作！"
-        exit 1
-    else
-        API_KEY="$Api_Key"
-    fi
-    echo -e "${Info}你的密钥：${RED_ground}${API_KEY}${NC}"
-    echo
-
-    sed -i 's/^#\?Email=".*"/Email="'"${EMAIL}"'"/g' /etc/DDNS/.config
-    sed -i 's/^#\?Api_key=".*"/Api_key="'"${API_KEY}"'"/g' /etc/DDNS/.config
-}
-
-# 设置Telegram参数
-set_telegram_settings(){
-    echo -e "${Tip}开始配置Telegram通知设置..."
-    echo
-
-    echo -e "${Tip}请输入您的Telegram Bot Token"
-    read -rp "Token: " Token
-    if [ -z "$Token" ]; then
-        echo -e "${Error}未输入Token，无法执行操作！"
-        exit 1
-    else
-        TELEGRAM_BOT_TOKEN="$Token"
-    fi
-    echo -e "${Info}你的Token：${RED_ground}${TELEGRAM_BOT_TOKEN}${NC}"
-    echo
-
-    echo -e "${Tip}请输入您的Telegram Chat ID"
-    read -rp "Chat ID: " Chat_ID
-    if [ -z "$Chat_ID" ]; then
-        echo -e "${Error}未输入Chat ID，无法执行操作！"
-        exit 1
-    else
-        TELEGRAM_CHAT_ID="$Chat_ID"
-    fi
-    echo -e "${Info}你的Chat ID：${RED_ground}${TELEGRAM_CHAT_ID}${NC}"
-    echo
-
-    sed -i 's/^#\?Telegram_Bot_Token=".*"/Telegram_Bot_Token="'"${TELEGRAM_BOT_TOKEN}"'"/g' /etc/DDNS/.config
-    sed -i 's/^#\?Telegram_Chat_ID=".*"/Telegram_Chat_ID="'"${TELEGRAM_CHAT_ID}"'"/g' /etc/DDNS/.config
-}
-
-# 修改Cloudflare API后，更新 DNS 记录
-update_dns_records(){
-    source /etc/DDNS/.config
-    /bin/bash /etc/DDNS/DDNS
-}
-
-# 发送Telegram通知
-send_telegram_notification(){
-    source /etc/DDNS/.config
-    curl -s -X POST "https://api.telegram.org/bot$Telegram_Bot_Token/sendMessage" \
-        -d "chat_id=$Telegram_Chat_ID" \
-        -d "text=DDNS 更新：$Domain 的 IP 地址已更新为 $Public_IPv4 (IPv4) 和 $Public_IPv6 (IPv6)。"
-}
-
-# 检查是否需要配置 Telegram 设置
-check_telegram_settings(){
-    if [[ -f "/etc/DDNS/.config" ]]; then
-        source /etc/DDNS/.config
-        if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" ]]; then
-            skip_telegram_settings=true
-        fi
-    fi
-}
-
-# 检查 DDNS 状态
-check_ddns_status(){
-    if [[ -f "/etc/systemd/system/ddns.timer" ]]; then
-        STatus=$(systemctl status ddns.timer | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
-        if [[ $STatus =~ "waiting"|"running" ]]; then
-            ddns_status=running
-        else
-            ddns_status=dead
-        fi
-    fi
-}
-
 # 开始安装DDNS
 install_ddns(){
     if [ ! -f "/usr/bin/ddns" ]; then
-        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns4.sh && chmod +x /usr/bin/ddns
+        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns.sh && chmod +x /usr/bin/ddns
     fi
     mkdir -p /etc/DDNS
     cat <<'EOF' > /etc/DDNS/DDNS
@@ -239,29 +125,15 @@ EOF
     echo
 }
 
-# 检查 DDNS 安装
-check_ddns_install(){
-    if [ ! -f "/etc/DDNS/.config" ]; then
-        cop_info
-        echo -e "${Tip}DDNS 未安装，现在开始安装..."
-        echo
-        install_ddns
-        set_domain
-        set_cloudflare_api
-        update_dns_records
-        run_ddns
-        echo -e "${Info}执行 ${GREEN}ddns${NC} 可呼出菜单！"
-    else
-        cop_info
-        check_ddns_status
-        if [[ "$ddns_status" == "running" ]]; then
-            echo -e "${Info}DDNS：${GREEN}已安装${NC} 并 ${GREEN}已启动${NC}"
+# 检查 DDNS 状态
+check_ddns_status(){
+    if [[ -f "/etc/systemd/system/ddns.timer" ]]; then
+        STatus=$(systemctl status ddns.timer | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
+        if [[ $STatus =~ "waiting"|"running" ]]; then
+            ddns_status=running
         else
-            echo -e "${Tip}DDNS：${GREEN}已安装${NC} 但 ${RED}未启动${NC}"
-            echo -e "${Tip}请选择 ${GREEN}4${NC} 重新配置 Cloudflare Api 或 ${GREEN}5${NC} 配置 Telegram 通知"
+            ddns_status=dead
         fi
-    echo
-    go_ahead
     fi
 }
 
@@ -298,16 +170,20 @@ go_ahead(){
         ;;
         3)
             set_domain
-            update_dns_records
             restart_ddns
             sleep 2
             check_ddns_install
         ;;
         4)
             set_cloudflare_api
-            update_dns_records
-            restart_ddns
-            sleep 2
+            set_domain
+            if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
+                run_ddns
+                sleep 2
+            else
+               restart_ddns
+               sleep 2
+            fi
             check_ddns_install
         ;;
         5)
@@ -315,6 +191,136 @@ go_ahead(){
             check_ddns_install
         ;;
     esac
+}
+
+# 设置Cloudflare Api
+set_cloudflare_api(){
+    echo -e "${Tip}开始配置CloudFlare API..."
+    echo
+
+    echo -e "${Tip}请输入您的Cloudflare邮箱"
+    read -rp "邮箱: " EMail
+    if [ -z "$EMail" ]; then
+        echo -e "${Error}未输入邮箱，无法执行操作！"
+        exit 1
+    else
+        EMAIL="$EMail"
+    fi
+    echo -e "${Info}你的邮箱：${RED_ground}${EMAIL}${NC}"
+    echo
+
+    echo -e "${Tip}请输入您的Cloudflare API密钥"
+    read -rp "密钥: " Api_Key
+    if [ -z "Api_Key" ]; then
+        echo -e "${Error}未输入密钥，无法执行操作！"
+        exit 1
+    else
+        API_KEY="$Api_Key"
+    fi
+    echo -e "${Info}你的密钥：${RED_ground}${API_KEY}${NC}"
+    echo
+
+    sed -i 's/^#\?Email=".*"/Email="'"${EMAIL}"'"/g' /etc/DDNS/.config
+    sed -i 's/^#\?Api_key=".*"/Api_key="'"${API_KEY}"'"/g' /etc/DDNS/.config
+}
+
+# 设置解析的域名
+set_domain(){
+    echo -e "${Tip}请输入您解析的域名"
+    read -rp "域名: " DOmain
+    if [ -z "$DOmain" ]; then
+        echo -e "${Error}未输入域名，无法执行操作！"
+        exit 1
+    else
+        DOMAIN="$DOmain"
+    fi
+    echo -e "${Info}你的域名：${RED_ground}${DOMAIN}${NC}"
+    echo
+
+    sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
+}
+
+# 运行DDNS服务
+run_ddns(){
+    service='[Unit]
+Description=ddns
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/etc/DDNS
+ExecStart=bash DDNS
+
+[Install]
+WantedBy=multi-user.target'
+
+    timer='[Unit]
+Description=ddns timer
+
+[Timer]
+OnUnitActiveSec=60s
+Unit=ddns.service
+
+[Install]
+WantedBy=multi-user.target'
+
+    if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
+        echo -e "${Info}创建ddns定时任务..."
+        echo "$service" >/etc/systemd/system/ddns.service
+        echo "$timer" >/etc/systemd/system/ddns.timer
+        echo -e "${Info}ddns定时任务已创建，每1分钟执行一次！"
+        systemctl enable --now ddns.service >/dev/null 2>&1
+        systemctl enable --now ddns.timer >/dev/null 2>&1
+    else
+        echo -e "${Tip}服务和定时器单元文件已存在，无需再次创建！"
+    fi
+}
+
+# 重启DDNS服务
+restart_ddns(){
+    systemctl restart ddns.service >/dev/null 2>&1
+    systemctl restart ddns.timer >/dev/null 2>&1
+}
+
+# 设置Telegram参数
+set_telegram_settings(){
+    echo -e "${Tip}开始配置Telegram通知设置..."
+    echo
+
+    echo -e "${Tip}请输入您的Telegram Bot Token"
+    read -rp "Token: " Token
+    if [ -z "$Token" ]; then
+        echo -e "${Error}未输入Token，无法执行操作！"
+        exit 1
+    else
+        TELEGRAM_BOT_TOKEN="$Token"
+    fi
+    echo -e "${Info}你的Token：${RED_ground}${TELEGRAM_BOT_TOKEN}${NC}"
+    echo
+
+    echo -e "${Tip}请输入您的Telegram Chat ID"
+    read -rp "Chat ID: " Chat_ID
+    if [ -z "$Chat_ID" ]; then
+        echo -e "${Error}未输入Chat ID，无法执行操作！"
+        exit 1
+    else
+        TELEGRAM_CHAT_ID="$Chat_ID"
+    fi
+    echo -e "${Info}你的Chat ID：${RED_ground}${TELEGRAM_CHAT_ID}${NC}"
+    echo
+
+    sed -i 's/^#\?Telegram_Bot_Token=".*"/Telegram_Bot_Token="'"${TELEGRAM_BOT_TOKEN}"'"/g' /etc/DDNS/.config
+    sed -i 's/^#\?Telegram_Chat_ID=".*"/Telegram_Chat_ID="'"${TELEGRAM_CHAT_ID}"'"/g' /etc/DDNS/.config
+}
+
+# 检查是否需要配置 Telegram 设置
+check_telegram_settings(){
+    if [[ -f "/etc/DDNS/.config" ]]; then
+        source /etc/DDNS/.config
+        if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" ]]; then
+            skip_telegram_settings=true
+        fi
+    fi
 }
 
 # 检查是否需要配置 Telegram 设置
@@ -331,5 +337,29 @@ if [[ ! $skip_telegram_settings ]]; then
 fi
 
 # 检查是否安装DDNS
+check_ddns_install(){
+    if [ ! -f "/etc/DDNS/.config" ]; then
+        cop_info
+        echo -e "${Tip}DDNS 未安装，现在开始安装..."
+        echo
+        install_ddns
+        set_cloudflare_api
+        set_domain
+        run_ddns
+        echo -e "${Info}执行 ${GREEN}ddns${NC} 可呼出菜单！"
+    else
+        cop_info
+        check_ddns_status
+        if [[ "$ddns_status" == "running" ]]; then
+            echo -e "${Info}DDNS：${GREEN}已安装${NC} 并 ${GREEN}已启动${NC}"
+        else
+            echo -e "${Tip}DDNS：${GREEN}已安装${NC} 但 ${RED}未启动${NC}"
+            echo -e "${Tip}请选择 ${GREEN}4${NC} 重新配置 Cloudflare Api 或 ${GREEN}5${NC} 配置 Telegram 通知"
+        fi
+    echo
+    go_ahead
+    fi
+}
+
 check_root
 check_ddns_install
