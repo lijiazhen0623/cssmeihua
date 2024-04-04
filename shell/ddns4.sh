@@ -147,7 +147,7 @@ go_ahead(){
   ${GREEN}2${NC}：${RED}卸载 DDNS${NC}
   ${GREEN}3${NC}：修改要解析的域名
   ${GREEN}4${NC}：修改 Cloudflare Api
-  ${GREEN}5${NC}：修改 Telegram 设置"
+  ${GREEN}5${NC}：配置 Telegram 通知"
     echo
     read -p "选项: " option
     until [[ "$option" =~ ^[0-5]$ ]]; do
