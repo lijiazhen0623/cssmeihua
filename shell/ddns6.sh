@@ -277,9 +277,9 @@ set_telegram_settings(){
         fi
     else
         echo -e "${Info}已跳过设置Telegram Bot Token和Chat ID"
+        return  # 如果没有输入 Token，则直接返回，跳过设置 Chat ID 的步骤
     fi
 }
-
 
 # 运行DDNS服务
 run_ddns(){
