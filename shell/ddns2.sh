@@ -40,23 +40,54 @@ install_ddns(){
 # 引入环境变量文件
 source /etc/DDNS/.config
 
-# 更新IPv4 DNS记录
-curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv4" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     --data "{\"type\":\"A\",\"name\":\"$Domain\",\"content\":\"$Public_IPv4\"}" >/dev/null 2>&1
+# 获取根域名
+Root_domain=$(echo "$Domain" | cut -d'.' -f2-)
 
-# 更新IPv6 DNS记录
-curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv6" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     --data "{\"type\":\"AAAA\",\"name\":\"$Domain\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
+# 获取公网IP地址
+regex_pattern='^(eth|ens|eno|esp|enp)[0-9]+'
 
-# 发送Telegram通知
-if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" ]]; then
-    send_telegram_notification
+InterFace=($(ip link show | awk -F': ' '{print $2}' | grep -E "$regex_pattern" | sed "s/@.*//g"))
+
+New_Public_IPv4=""
+New_Public_IPv6=""
+
+for i in "${InterFace[@]}"; do
+    ipv4=$(curl -s4m8 --interface "$i" api64.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
+    ipv6=$(curl -s6m8 --interface "$i" api64.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
+    
+    # 检查是否获取到IP地址
+    if [[ -n "$ipv4" ]]; then
+        New_Public_IPv4="$ipv4"
+    fi
+    
+    if [[ -n "$ipv6" ]]; then
+        New_Public_IPv6="$ipv6"
+    fi
+done
+
+# 比较新旧IP地址
+if [[ "$New_Public_IPv4" != "$Public_IPv4" || "$New_Public_IPv6" != "$Public_IPv6" ]]; then
+    Public_IPv4="$New_Public_IPv4"
+    Public_IPv6="$New_Public_IPv6"
+    
+    # 更新IPv4 DNS记录
+    curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv4" \
+         -H "X-Auth-Email: $Email" \
+         -H "X-Auth-Key: $Api_key" \
+         -H "Content-Type: application/json" \
+         --data "{\"type\":\"A\",\"name\":\"$Domain\",\"content\":\"$Public_IPv4\"}" >/dev/null 2>&1
+
+    # 更新IPv6 DNS记录
+    curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv6" \
+         -H "X-Auth-Email: $Email" \
+         -H "X-Auth-Key: $Api_key" \
+         -H "Content-Type: application/json" \
+         --data "{\"type\":\"AAAA\",\"name\":\"$Domain\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
+
+    # 发送Telegram通知
+    if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" ]]; then
+        send_telegram_notification
+    fi
 fi
 EOF
     cat <<'EOF' > /etc/DDNS/.config
@@ -67,62 +98,16 @@ Api_key="your_api_key"  # 你的Cloudflare API密钥
 # Telegram Bot Token 和 Chat ID
 Telegram_Bot_Token=""
 Telegram_Chat_ID=""
-
-# 获取根域名
-Root_domain=$(echo "$Domain" | cut -d'.' -f2-)
-
-# 获取公网IP地址
-regex_pattern='^(eth|ens|eno|esp|enp)[0-9]+'
-
-InterFace=($(ip link show | awk -F': ' '{print $2}' | grep -E "$regex_pattern" | sed "s/@.*//g"))
-
-Public_IPv4=""
-Public_IPv6=""
-
-for i in "${InterFace[@]}"; do
-    ipv4=$(curl -s4m8 --interface "$i" api64.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
-    ipv6=$(curl -s6m8 --interface "$i" api64.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
-    
-    # 检查是否获取到IP地址
-    if [[ -n "$ipv4" ]]; then
-        Public_IPv4="$ipv4"
-    fi
-    
-    if [[ -n "$ipv6" ]]; then
-        Public_IPv6="$ipv6"
-    fi
-done
-
-# 使用Cloudflare API获取根域名的区域ID
-Zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$Root_domain" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     | grep -Po '(?<="id":")[^"]*' | head -1)
-
-# 获取IPv4 DNS记录ID
-DNS_IDv4=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=A&name=$Domain" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     | grep -Po '(?<="id":")[^"]*' | head -1)
-
-# 获取IPv6 DNS记录ID
-DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=AAAA&name=$Domain" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     | grep -Po '(?<="id":")[^"]*' | head -1)
+EOF
+    echo -e "${Info}DDNS 安装完成！"
+    echo
+}
 
 # 发送Telegram通知
 send_telegram_notification(){
     curl -s -X POST "https://api.telegram.org/bot$Telegram_Bot_Token/sendMessage" \
         -d "chat_id=$Telegram_Chat_ID" \
         -d "text=DDNS 更新：$Domain 的 IP 地址已更新为 $Public_IPv4 (IPv4) 和 $Public_IPv6 (IPv6)。"
-}
-EOF
-    echo -e "${Info}DDNS 安装完成！"
-    echo
 }
 
 # 检查 DDNS 状态
@@ -145,7 +130,7 @@ go_ahead(){
   ${GREEN}2${NC}：${RED}卸载 DDNS${NC}
   ${GREEN}3${NC}：修改要解析的域名
   ${GREEN}4${NC}：修改 Cloudflare Api
-  ${GREEN}5${NC}：修改 Telegram 设置"
+  ${GREEN}5${NC}：配置 Telegram 通知设置"
     echo
     read -p "选项: " option
     until [[ "$option" =~ ^[0-5]$ ]]; do
@@ -193,51 +178,68 @@ go_ahead(){
     esac
 }
 
-# 设置Cloudflare Api
+# 设置 Telegram 通知
+set_telegram_settings(){
+    echo -e "${Tip}开始配置Telegram通知设置..."
+    echo
+
+    echo -e "${Tip}请输入您的Telegram Bot Token"
+    read -rp "Token: " Token
+    if [ -n "$Token" ]; then
+        Telegram_Bot_Token="$Token"
+    fi
+    echo
+
+    echo -e "${Tip}请输入您的Telegram Chat ID"
+    read -rp "Chat ID: " Chat_ID
+    if [ -n "$Chat_ID" ]; then
+        Telegram_Chat_ID="$Chat_ID"
+    fi
+    echo
+
+    sed -i 's/^#\?Telegram_Bot_Token=".*"/Telegram_Bot_Token="'"${Telegram_Bot_Token}"'"/g' /etc/DDNS/.config
+    sed -i 's/^#\?Telegram_Chat_ID=".*"/Telegram_Chat_ID="'"${Telegram_Chat_ID}"'"/g' /etc/DDNS/.config
+    echo -e "${Info}Telegram 通知设置完成！"
+    echo
+}
+
+# 配置解析的域名
+set_domain(){
+    echo -e "${Tip}请输入您解析的域名"
+    read -rp "域名: " DOmain
+    if [ -n "$DOmain" ]; then
+        DOMAIN="$DOmain"
+    fi
+    echo
+
+    sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
+    echo -e "${Info}您的域名已设置为：${DOMAIN}"
+    echo
+}
+
+# 配置Cloudflare Api
 set_cloudflare_api(){
-    echo -e "${Tip}开始配置CloudFlare API..."
+    echo -e "${Tip}开始配置Cloudflare API..."
     echo
 
     echo -e "${Tip}请输入您的Cloudflare邮箱"
     read -rp "邮箱: " EMail
-    if [ -z "$EMail" ]; then
-        echo -e "${Error}未输入邮箱，无法执行操作！"
-        exit 1
-    else
+    if [ -n "$EMail" ]; then
         EMAIL="$EMail"
     fi
-    echo -e "${Info}你的邮箱：${RED_ground}${EMAIL}${NC}"
     echo
 
     echo -e "${Tip}请输入您的Cloudflare API密钥"
     read -rp "密钥: " Api_Key
-    if [ -z "Api_Key" ]; then
-        echo -e "${Error}未输入密钥，无法执行操作！"
-        exit 1
-    else
+    if [ -n "$Api_Key" ]; then
         API_KEY="$Api_Key"
     fi
-    echo -e "${Info}你的密钥：${RED_ground}${API_KEY}${NC}"
     echo
 
     sed -i 's/^#\?Email=".*"/Email="'"${EMAIL}"'"/g' /etc/DDNS/.config
     sed -i 's/^#\?Api_key=".*"/Api_key="'"${API_KEY}"'"/g' /etc/DDNS/.config
-}
-
-# 设置解析的域名
-set_domain(){
-    echo -e "${Tip}请输入您解析的域名"
-    read -rp "域名: " DOmain
-    if [ -z "$DOmain" ]; then
-        echo -e "${Error}未输入域名，无法执行操作！"
-        exit 1
-    else
-        DOMAIN="$DOmain"
-    fi
-    echo -e "${Info}你的域名：${RED_ground}${DOMAIN}${NC}"
+    echo -e "${Info}Cloudflare API 配置完成！"
     echo
-
-    sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
 }
 
 # 运行DDNS服务
@@ -281,60 +283,6 @@ restart_ddns(){
     systemctl restart ddns.service >/dev/null 2>&1
     systemctl restart ddns.timer >/dev/null 2>&1
 }
-
-# 设置Telegram参数
-set_telegram_settings(){
-    echo -e "${Tip}开始配置Telegram通知设置..."
-    echo
-
-    echo -e "${Tip}请输入您的Telegram Bot Token"
-    read -rp "Token: " Token
-    if [ -z "$Token" ]; then
-        echo -e "${Error}未输入Token，无法执行操作！"
-        exit 1
-    else
-        TELEGRAM_BOT_TOKEN="$Token"
-    fi
-    echo -e "${Info}你的Token：${RED_ground}${TELEGRAM_BOT_TOKEN}${NC}"
-    echo
-
-    echo -e "${Tip}请输入您的Telegram Chat ID"
-    read -rp "Chat ID: " Chat_ID
-    if [ -z "$Chat_ID" ]; then
-        echo -e "${Error}未输入Chat ID，无法执行操作！"
-        exit 1
-    else
-        TELEGRAM_CHAT_ID="$Chat_ID"
-    fi
-    echo -e "${Info}你的Chat ID：${RED_ground}${TELEGRAM_CHAT_ID}${NC}"
-    echo
-
-    sed -i 's/^#\?Telegram_Bot_Token=".*"/Telegram_Bot_Token="'"${TELEGRAM_BOT_TOKEN}"'"/g' /etc/DDNS/.config
-    sed -i 's/^#\?Telegram_Chat_ID=".*"/Telegram_Chat_ID="'"${TELEGRAM_CHAT_ID}"'"/g' /etc/DDNS/.config
-}
-
-# 检查是否需要配置 Telegram 设置
-check_telegram_settings(){
-    if [[ -f "/etc/DDNS/.config" ]]; then
-        source /etc/DDNS/.config
-        if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" ]]; then
-            skip_telegram_settings=true
-        fi
-    fi
-}
-
-# 检查是否需要配置 Telegram 设置
-check_telegram_settings
-
-if [[ ! $skip_telegram_settings ]]; then
-    echo -e "${Tip}是否要配置 Telegram 通知设置？[Y/n]"
-    read -rp "选择 (默认为 Y): " choice
-    if [[ $choice =~ ^[Nn]$ ]]; then
-        echo -e "${Tip}已跳过 Telegram 通知设置"
-    else
-        set_telegram_settings
-    fi
-fi
 
 # 检查是否安装DDNS
 check_ddns_install(){
