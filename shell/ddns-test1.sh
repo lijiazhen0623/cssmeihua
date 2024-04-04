@@ -252,7 +252,7 @@ set_telegram_settings(){
     echo
 
     echo -e "${Tip}请输入您的Telegram Bot Token"
-    read -rp "Token: " Token
+    read -p "Token: " Token
     if [ -z "$Token" ]; then
         echo -e "${Error}未输入Token，无法执行操作！"
         exit 1
@@ -263,7 +263,7 @@ set_telegram_settings(){
     echo
 
     echo -e "${Tip}请输入您的Telegram Chat ID"
-    read -rp "Chat ID: " Chat_ID
+    read -p "Chat ID: " Chat_ID
     if [ -z "$Chat_ID" ]; then
         echo -e "${Error}未输入Chat ID，无法执行操作！"
         exit 1
@@ -332,7 +332,7 @@ check_ddns_status(){
 # 运行菜单函数
 go_ahead(){
     echo -e "${Tip}是否继续？[Y/n]"
-    read -rp "选择 (默认为 Y): " choice
+    read -p "选择 (默认为 Y): " choice
     if [[ $choice =~ ^[Nn]$ ]]; then
         echo -e "${Info}感谢您的使用！"
         exit 0
@@ -353,7 +353,7 @@ menu(){
     echo -e " ${GREEN}5.${NC} 重新配置 Telegram 通知"
     echo -e " ${GREEN}6.${NC} 退出"
     echo
-    read -rp "选择 [1-6]: " choice
+    read -p "选择 [1-6]: " choice
     case $choice in
         1) cop_info
            install_ddns
