@@ -64,8 +64,9 @@ if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && ("$Public_IPv4" != "
 fi
 
 # 保存当前的 IP 地址到配置文件
-echo "Public_IPv4=\"$Public_IPv4\"" >/etc/DDNS/.config
-echo "Public_IPv6=\"$Public_IPv6\"" >>/etc/DDNS/.config
+# 保存当前的 IP 地址到配置文件
+sed -i "s/^Public_IPv4=.*/Public_IPv4=\"$Public_IPv4\"/" /etc/DDNS/.config
+sed -i "s/^Public_IPv6=.*/Public_IPv6=\"$Public_IPv6\"/" /etc/DDNS/.config
 EOF
     cat <<'EOF' > /etc/DDNS/.config
 Domain="your_domain.com"		# 你要解析的域名
