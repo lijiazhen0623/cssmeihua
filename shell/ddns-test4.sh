@@ -120,6 +120,9 @@ send_telegram_notification(){
     curl -s -X POST "https://api.telegram.org/bot$Telegram_Bot_Token/sendMessage" \
         -d "chat_id=$Telegram_Chat_ID" \
         -d "text=DDNS 更新：$Domain 的 IP 地址已更新为 $Public_IPv4 (IPv4) 和 $Public_IPv6 (IPv6)。"
+EOF
+    echo -e "${Info}DDNS 安装完成!”
+    echo
 }
 
 # 检查是否需要发送Telegram通知
@@ -127,10 +130,6 @@ check_send_telegram_notification(){
     if [[ -n "$Old_IPv4" && "$Old_IPv4" != "$Public_IPv4" ]] || [[ -n "$Old_IPv6" && "$Old_IPv6" != "$Public_IPv6" ]]; then
         send_telegram_notification
     fi
-}
-EOF
-    echo -e "${Info}DDNS 安装完成!”
-    echo
 }
 
 # 获取之前的IP地址
