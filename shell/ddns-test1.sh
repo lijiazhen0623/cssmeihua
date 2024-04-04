@@ -282,7 +282,7 @@ check_telegram_settings
 
 if [[ ! $skip_telegram_settings ]]; then
     echo -e "${Tip}是否要配置 Telegram 通知设置？[Y/n]"
-    read -rp "选择 (默认为 Y): " choice
+    read -p "选择 (默认为 Y): " choice
     if [[ $choice =~ ^[Nn]$ ]]; then
         echo -e "${Tip}已跳过 Telegram 通知设置"
     else
