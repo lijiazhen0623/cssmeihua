@@ -41,8 +41,8 @@ install_ddns(){
 source /etc/DDNS/.config
 
 # 保存旧的 IP 地址
-Old_Public_IPv4="$Public_IPv4"
-Old_Public_IPv6="$Public_IPv6"
+Old_Public_IPv4="$Old_Public_IPv4"
+Old_Public_IPv6="$Old_Public_IPv6"
 
 # 更新IPv4 DNS记录
 curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv4" \
