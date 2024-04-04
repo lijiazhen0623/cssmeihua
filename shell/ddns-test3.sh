@@ -332,7 +332,7 @@ check_ddns_status(){
 # 运行菜单函数
 go_ahead(){
     echo -e "${Tip}是否继续？[Y/n]"
-    read -p "选择 (默认为 Y): " choice
+    read -p "选择 默认为 Y: " choice
     if [[ $choice =~ ^[Nn]$ ]]; then
         echo -e "${Info}感谢您的使用！"
         exit 0
