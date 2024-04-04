@@ -265,7 +265,7 @@ set_cloudflare_api(){
 
     echo -e "${Tip}请输入您的Cloudflare邮箱"
     read -rp "邮箱: " EMail
-    if [ -z "$EMail" ];
+    if [ -z "$EMail" ]; then
         echo -e "${Error}未输入邮箱，无法执行操作！"
         exit 1
     else
