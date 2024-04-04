@@ -31,7 +31,7 @@ check_root(){
 # 开始安装DDNS
 install_ddns(){
     if [ ! -f "/usr/bin/ddns" ]; then
-        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns5.sh && chmod +x /usr/bin/ddns
+        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns6.sh && chmod +x /usr/bin/ddns
     fi
     mkdir -p /etc/DDNS
     cat <<'EOF' > /etc/DDNS/DDNS
@@ -64,8 +64,8 @@ if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && ("$Public_IPv4" != "
 fi
 
 # 保存当前的 IP 地址到配置文件
-sed -i "s/^Public_IPv4=.*/Public_IPv4=\"$Public_IPv4\"/" /etc/DDNS/.config
-sed -i "s/^Public_IPv6=.*/Public_IPv6=\"$Public_IPv6\"/" /etc/DDNS/.config
+sed -i "s/^Old_Public_IPv4=.*/Old_Public_IPv4=\"$Old_Public_IPv4\"/" /etc/DDNS/.config
+sed -i "s/^Old_Public_IPv6=.*/Old_Public_IPv6=\"$Old_Public_IPv6\"/" /etc/DDNS/.config
 EOF
     cat <<'EOF' > /etc/DDNS/.config
 Domain="your_domain.com"		# 你要解析的域名
