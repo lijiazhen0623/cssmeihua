@@ -255,6 +255,32 @@ set_domain(){
     sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
 }
 
+# 设置Telegram参数
+set_telegram_settings(){
+    echo -e "${Tip}开始配置Telegram通知设置..."
+    echo
+
+    echo -e "${Tip}请输入您的Telegram Bot Token，如果不使用Telegram通知请直接按 Enter 跳过"
+    read -rp "Token: " Token
+    if [ -n "$Token" ]; then
+        TELEGRAM_BOT_TOKEN="$Token"
+
+        echo -e "${Tip}请输入您的Telegram Chat ID，如果不使用Telegram通知请直接按 Enter 跳过"
+        read -rp "Chat ID: " Chat_ID
+        if [ -n "$Chat_ID" ]; then
+            TELEGRAM_CHAT_ID="$Chat_ID"
+
+            sed -i 's/^#\?Telegram_Bot_Token=".*"/Telegram_Bot_Token="'"${TELEGRAM_BOT_TOKEN}"'"/g' /etc/DDNS/.config
+            sed -i 's/^#\?Telegram_Chat_ID=".*"/Telegram_Chat_ID="'"${TELEGRAM_CHAT_ID}"'"/g' /etc/DDNS/.config
+        else
+            echo -e "${Info}已跳过设置Telegram Chat ID"
+        fi
+    else
+        echo -e "${Info}已跳过设置Telegram Bot Token和Chat ID"
+    fi
+}
+
+
 # 运行DDNS服务
 run_ddns(){
     service='[Unit]
@@ -295,37 +321,6 @@ WantedBy=multi-user.target'
 restart_ddns(){
     systemctl restart ddns.service >/dev/null 2>&1
     systemctl restart ddns.timer >/dev/null 2>&1
-}
-
-# 设置Telegram参数
-set_telegram_settings(){
-    echo -e "${Tip}开始配置Telegram通知设置..."
-    echo
-
-    echo -e "${Tip}请输入您的Telegram Bot Token"
-    read -rp "Token: " Token
-    if [ -z "$Token" ]; then
-        echo -e "${Error}未输入Token，无法执行操作！"
-        exit 1
-    else
-        TELEGRAM_BOT_TOKEN="$Token"
-    fi
-    echo -e "${Info}你的Token：${RED_ground}${TELEGRAM_BOT_TOKEN}${NC}"
-    echo
-
-    echo -e "${Tip}请输入您的Telegram Chat ID"
-    read -rp "Chat ID: " Chat_ID
-    if [ -z "$Chat_ID" ]; then
-        echo -e "${Error}未输入Chat ID，无法执行操作！"
-        exit 1
-    else
-        TELEGRAM_CHAT_ID="$Chat_ID"
-    fi
-    echo -e "${Info}你的Chat ID：${RED_ground}${TELEGRAM_CHAT_ID}${NC}"
-    echo
-
-    sed -i 's/^#\?Telegram_Bot_Token=".*"/Telegram_Bot_Token="'"${TELEGRAM_BOT_TOKEN}"'"/g' /etc/DDNS/.config
-    sed -i 's/^#\?Telegram_Chat_ID=".*"/Telegram_Chat_ID="'"${TELEGRAM_CHAT_ID}"'"/g' /etc/DDNS/.config
 }
 
 # 检查是否安装DDNS
