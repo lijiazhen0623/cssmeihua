@@ -257,18 +257,22 @@ set_domain(){
 
 # 设置Telegram参数
 set_telegram_settings(){
-    echo -e "${Tip}开始配置Telegram通知设置..."
+    echo -e "${RED_ground}开始配置Telegram通知设置...${NC}"
     echo
 
     echo -e "${Tip}请输入您的Telegram Bot Token，如果不使用Telegram通知请直接按 Enter 跳过"
     read -rp "Token: " Token
     if [ -n "$Token" ]; then
         TELEGRAM_BOT_TOKEN="$Token"
+        echo -e "${Info}你的TOKEN：${RED_ground}$TELEGRAM_BOT_TOKEN${NC}"
+        echo
 
         echo -e "${Tip}请输入您的Telegram Chat ID，如果不使用Telegram通知请直接按 Enter 跳过"
         read -rp "Chat ID: " Chat_ID
         if [ -n "$Chat_ID" ]; then
             TELEGRAM_CHAT_ID="$Chat_ID"
+            echo -e "${Info}你的Chat ID：${RED_ground}$TELEGRAM_CHAT_ID${NC}"
+            echo
 
             sed -i 's/^#\?Telegram_Bot_Token=".*"/Telegram_Bot_Token="'"${TELEGRAM_BOT_TOKEN}"'"/g' /etc/DDNS/.config
             sed -i 's/^#\?Telegram_Chat_ID=".*"/Telegram_Chat_ID="'"${TELEGRAM_CHAT_ID}"'"/g' /etc/DDNS/.config
