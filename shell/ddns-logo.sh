@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# 定义日志文件路径和最大大小
-LOG_FILE="/etc/DDNS/ddns.log"
-MAX_SIZE=10485760  # 10 MB
-
 # 检查日志文件大小并进行轮转
 check_log_size() {
     if [ -f "$LOG_FILE" ]; then
@@ -54,7 +50,9 @@ install_ddns(){
     cat <<'EOF' > /etc/DDNS/DDNS
 #!/bin/bash
 
-check_log_size
+# 在此处添加日志记录
+LOG_FILE="/etc/DDNS/ddns.log"
+MAX_SIZE=10485760  # 10 MB
 touch "$LOG_FILE"
 echo "$(date +"%Y-%m-%d %H:%M:%S") - INFO: Starting script execution." >> "$LOG_FILE"
 
