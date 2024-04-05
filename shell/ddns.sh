@@ -31,7 +31,7 @@ check_root(){
 # 开始安装DDNS
 install_ddns(){
     if [ ! -f "/usr/bin/ddns" ]; then
-        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns.sh && chmod +x /usr/bin/ddns
+        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns6.sh && chmod +x /usr/bin/ddns
     fi
     mkdir -p /etc/DDNS
     cat <<'EOF' > /etc/DDNS/DDNS
@@ -39,6 +39,10 @@ install_ddns(){
 
 # 引入环境变量文件
 source /etc/DDNS/.config
+
+# 保存旧的 IP 地址
+Old_Public_IPv4="$Old_Public_IPv4"
+Old_Public_IPv6="$Old_Public_IPv6"
 
 # 更新IPv4 DNS记录
 curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv4" \
@@ -53,11 +57,29 @@ curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/
      -H "X-Auth-Key: $Api_key" \
      -H "Content-Type: application/json" \
      --data "{\"type\":\"AAAA\",\"name\":\"$Domain\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
+
+# 发送Telegram通知
+if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && ("$Public_IPv4" != "$Old_Public_IPv4" || "$Public_IPv6" != "$Old_Public_IPv6") ]]; then
+    send_telegram_notification
+fi
+
+# 延迟8秒
+sleep 8
+
+# 保存当前的 IP 地址到配置文件，但只有当 IP 地址有变化时才进行更新
+if [[ "$Public_IPv4" != "$Old_Public_IPv4" || "$Public_IPv6" != "$Old_Public_IPv6" ]]; then
+    sed -i "s/^Old_Public_IPv4=.*/Old_Public_IPv4=\"$Public_IPv4\"/" /etc/DDNS/.config
+    sed -i "s/^Old_Public_IPv6=.*/Old_Public_IPv6=\"$Public_IPv6\"/" /etc/DDNS/.config
+fi
 EOF
     cat <<'EOF' > /etc/DDNS/.config
 Domain="your_domain.com"		# 你要解析的域名
 Email="your_email@gmail.com"     # 你在Cloudflare注册的邮箱
 Api_key="your_api_key"  # 你的Cloudflare API密钥
+
+# Telegram Bot Token 和 Chat ID
+Telegram_Bot_Token=""
+Telegram_Chat_ID=""
 
 # 获取根域名
 Root_domain=$(echo "$Domain" | cut -d'.' -f2-)
@@ -69,6 +91,8 @@ InterFace=($(ip link show | awk -F': ' '{print $2}' | grep -E "$regex_pattern" |
 
 Public_IPv4=""
 Public_IPv6=""
+Old_Public_IPv4=""
+Old_Public_IPv6=""
 
 for i in "${InterFace[@]}"; do
     ipv4=$(curl -s4m8 --interface "$i" api64.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
@@ -104,6 +128,13 @@ DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/d
      -H "X-Auth-Key: $Api_key" \
      -H "Content-Type: application/json" \
      | grep -Po '(?<="id":")[^"]*' | head -1)
+
+# 发送 Telegram 通知函数
+send_telegram_notification(){
+    curl -s -X POST "https://api.telegram.org/bot$Telegram_Bot_Token/sendMessage" \
+        -d "chat_id=$Telegram_Chat_ID" \
+        -d "text=DDNS 更新 $Domain 的 IP 地址已更新为 $Public_IPv4 (IPv4) 和 $Public_IPv6 (IPv6)。旧 IP 地址为 $Old_Public_IPv4 (IPv4) 和 $Old_Public_IPv6 (IPv6)。"
+}
 EOF
     echo -e "${Info}DDNS 安装完成！"
     echo
@@ -128,11 +159,12 @@ go_ahead(){
   ${GREEN}1${NC}：重启 DDNS
   ${GREEN}2${NC}：${RED}卸载 DDNS${NC}
   ${GREEN}3${NC}：修改要解析的域名
-  ${GREEN}4${NC}：修改 Cloudflare Api"
+  ${GREEN}4${NC}：修改 Cloudflare Api
+  ${GREEN}5${NC}：配置 Telegram 通知"
     echo
     read -p "选项: " option
-    until [[ "$option" =~ ^[0-4]$ ]]; do
-        echo -e "${Error}请输入正确的数字 [0-4]"
+    until [[ "$option" =~ ^[0-5]$ ]]; do
+        echo -e "${Error}请输入正确的数字 [0-5]"
         echo
         exit 1
     done
@@ -169,10 +201,14 @@ go_ahead(){
             fi
             check_ddns_install
         ;;
+        5)
+            set_telegram_settings
+            check_ddns_install
+        ;;
     esac
 }
 
-# 配置Cloudflare Api
+# 设置Cloudflare Api
 set_cloudflare_api(){
     echo -e "${Tip}开始配置CloudFlare API..."
     echo
@@ -203,7 +239,7 @@ set_cloudflare_api(){
     sed -i 's/^#\?Api_key=".*"/Api_key="'"${API_KEY}"'"/g' /etc/DDNS/.config
 }
 
-# 配置解析的域名
+# 设置解析的域名
 set_domain(){
     echo -e "${Tip}请输入您解析的域名"
     read -rp "域名: " DOmain
@@ -217,6 +253,36 @@ set_domain(){
     echo
 
     sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
+}
+
+# 设置Telegram参数
+set_telegram_settings(){
+    echo -e "${RED_ground}开始配置Telegram通知设置...${NC}"
+    echo
+
+    echo -e "${Tip}请输入您的Telegram Bot Token，如果不使用Telegram通知请直接按 Enter 跳过"
+    read -rp "Token: " Token
+    if [ -n "$Token" ]; then
+        TELEGRAM_BOT_TOKEN="$Token"
+        echo -e "${Info}你的TOKEN：${RED_ground}$TELEGRAM_BOT_TOKEN${NC}"
+        echo
+
+        echo -e "${Tip}请输入您的Telegram Chat ID，如果不使用Telegram通知请直接按 Enter 跳过"
+        read -rp "Chat ID: " Chat_ID
+        if [ -n "$Chat_ID" ]; then
+            TELEGRAM_CHAT_ID="$Chat_ID"
+            echo -e "${Info}你的Chat ID：${RED_ground}$TELEGRAM_CHAT_ID${NC}"
+            echo
+
+            sed -i 's/^#\?Telegram_Bot_Token=".*"/Telegram_Bot_Token="'"${TELEGRAM_BOT_TOKEN}"'"/g' /etc/DDNS/.config
+            sed -i 's/^#\?Telegram_Chat_ID=".*"/Telegram_Chat_ID="'"${TELEGRAM_CHAT_ID}"'"/g' /etc/DDNS/.config
+        else
+            echo -e "${Info}已跳过设置Telegram Chat ID"
+        fi
+    else
+        echo -e "${Info}已跳过设置Telegram Bot Token和Chat ID"
+        return  # 如果没有输入 Token，则直接返回，跳过设置 Chat ID 的步骤
+    fi
 }
 
 # 运行DDNS服务
@@ -270,6 +336,7 @@ check_ddns_install(){
         install_ddns
         set_cloudflare_api
         set_domain
+        set_telegram_settings
         run_ddns
         echo -e "${Info}执行 ${GREEN}ddns${NC} 可呼出菜单！"
     else
@@ -279,7 +346,7 @@ check_ddns_install(){
             echo -e "${Info}DDNS：${GREEN}已安装${NC} 并 ${GREEN}已启动${NC}"
         else
             echo -e "${Tip}DDNS：${GREEN}已安装${NC} 但 ${RED}未启动${NC}"
-            echo -e "${Tip}请选择 ${GREEN}4${NC} 重新配置 Cloudflare Api"
+            echo -e "${Tip}请选择 ${GREEN}4${NC} 重新配置 Cloudflare Api 或 ${GREEN}5${NC} 配置 Telegram 通知"
         fi
     echo
     go_ahead
