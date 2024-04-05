@@ -48,7 +48,7 @@ check_root(){
 install_ddns(){
     check_log_size
     if [ ! -f "/usr/bin/ddns" ]; then
-        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns.sh && chmod +x /usr/bin/ddns
+        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns-logo.sh && chmod +x /usr/bin/ddns
     fi
     mkdir -p /etc/DDNS
     cat <<'EOF' > /etc/DDNS/DDNS
