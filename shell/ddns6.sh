@@ -133,7 +133,7 @@ DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/d
 send_telegram_notification(){
     curl -s -X POST "https://api.telegram.org/bot$Telegram_Bot_Token/sendMessage" \
         -d "chat_id=$Telegram_Chat_ID" \
-        -d "text=DDNS 更新：$Domain 的 IP 地址已更新为 $Public_IPv4 (IPv4) 和 $Public_IPv6 (IPv6)。旧 IP 地址为 $Old_Public_IPv4 (IPv4) 和 $Old_Public_IPv6 (IPv6)。"
+        -d "text=DDNS 更新 $Domain 的 IP 地址已更新为 $Public_IPv4 (IPv4) 和 $Public_IPv6 (IPv6)。旧 IP 地址为 $Old_Public_IPv4 (IPv4) 和 $Old_Public_IPv6 (IPv6)。"
 }
 EOF
     echo -e "${Info}DDNS 安装完成！"
