@@ -54,7 +54,6 @@ install_ddns(){
 LOG_FILE="/etc/DDNS/ddns.log"
 MAX_SIZE=10485760  # 10 MB
 touch "$LOG_FILE"
-echo "$(date +"%Y-%m-%d %H:%M:%S") - INFO: Starting script execution." >> "$LOG_FILE"
 
 # 引入环境变量文件
 source /etc/DDNS/.config
