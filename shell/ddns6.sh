@@ -336,6 +336,7 @@ check_ddns_install(){
         install_ddns
         set_cloudflare_api
         set_domain
+        set_telegram_settings
         run_ddns
         echo -e "${Info}执行 ${GREEN}ddns${NC} 可呼出菜单！"
     else
