@@ -28,8 +28,19 @@ backup_sources() {
     echo -e "${GREEN}源列表已成功备份至：${backup_path}${NC}"
 }
 
+# 恢复备份的源函数
+recovery_sources() {
+    if [ -f /etc/apt/sources.list.backup ]; then
+        cp /etc/apt/sources.list.backup /etc/apt/sources.list
+        echo -e "${GREEN}已保存最开始的sources.list。${NC}"
+    else
+        echo -e "${RED}开始备份${NC}"
+    fi
+}
+
 # 更新为官方Debian镜像源的函数
 update_sources() {
+    recovery_sources
     backup_sources
     
     # 检查官方Debian镜像源是否可用
@@ -56,6 +67,7 @@ EOF
 
 # 更新为清华镜像的函数
 update_tsinghua_mirrors_sources() {
+    recovery_sources
     backup_sources
 
     # 检查清华镜像源是否可用
@@ -82,6 +94,7 @@ EOF
 
 # 更新为中科大镜像的函数
 update_ustc_mirrors_sources() {
+    recovery_sources
     backup_sources
     
     # 检查中科大镜像源是否可用
@@ -108,6 +121,7 @@ EOF
 
 # 更新为腾讯云镜像的函数
 update_tencent_mirrors_sources() {
+    recovery_sources
     backup_sources
     
     # 检查腾讯云镜像源是否可用
@@ -134,6 +148,7 @@ EOF
 
 # 更新为阿里云镜像的函数
 update_aliyun_mirrors_sources() {
+    recovery_sources
     backup_sources
     
     # 检查阿里云镜像源是否可用
