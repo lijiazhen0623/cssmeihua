@@ -9,7 +9,7 @@ NC='\033[0m' # No Color
 cop_info(){
     clear
     echo -e "${GREEN}######################################
-    #          ${RED}Debian换源 一键脚本           ${GREEN}#
+    #            ${RED}Debian换源 一键脚本           ${GREEN}#
     #             作者: ${YELLOW}末晨             ${GREEN}#
     ######################################${NC}"
     echo
@@ -26,13 +26,7 @@ cp /etc/apt/sources.list /etc/apt/sources.list.backup
 
 # 更新为官方Debian镜像源的函数
 update_sources() {
-    # 检查网络连接是否正常
-    if ! ping -c 1 deb.debian.org &> /dev/null; then
-        echo -e "${RED}无法连接到官方Debian镜像源。请检查您的网络连接。${NC}"
-        exit 1
-    fi
-
-    # 检查官方Debian源是否可用
+    # 检查官方Debian镜像源是否可用
     if ! curl -s --head https://deb.debian.org/debian/ | head -n 1 | grep "200 OK" > /dev/null; then
         echo -e "${RED}官方Debian镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
         exit 1
@@ -118,7 +112,7 @@ deb https://mirrors.cloud.tencent.com/debian/ bullseye-updates main contrib non-
 deb-src https://mirrors.cloud.tencent.com/debian/ bullseye-updates main contrib non-free
 
 deb https://mirrors.cloud.tencent.com/debian/ bullseye-backports main contrib non-free
-deb-src https://mirrors.cloud.tencent.com/debian/ bullseye-backports maincontrib non-free
+deb-src https://mirrors.cloud.tencent.com/debian/ bullseye-backports main contrib non-free
 
 deb https://mirrors.cloud.tencent.com/debian-security/ bullseye-security main contrib non-free
 deb-src https://mirrors.cloud.tencent.com/debian-security/ bullseye-security main contrib non-free
