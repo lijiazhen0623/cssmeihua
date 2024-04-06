@@ -220,7 +220,7 @@ case "$choice" in
         restore_sources
         ;;
     *)
-        echo -e "${RED}无效的选项，请选择0、1、2、3、4或5。${NC}"
+        echo -e "${RED}无效的选项，请选择0、1、2、3、4、5或6。${NC}"
         exit 1
         ;;
 esac
