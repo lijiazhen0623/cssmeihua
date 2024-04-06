@@ -9,7 +9,7 @@ NC='\033[0m' # No Color
 cop_info(){
 clear
 echo -e "${GREEN}######################################
-#       ${RED}Debian换源 一键脚本           ${GREEN}#
+#         ${RED}Debian换源 一键脚本        ${GREEN}#
 #             作者: ${YELLOW}末晨             ${GREEN}#
 ######################################${NC}"
 echo
