@@ -27,7 +27,7 @@ cp /etc/apt/sources.list /etc/apt/sources.list.backup
 # 更新为官方Debian镜像源的函数
 update_sources() {
     # 检查官方Debian镜像源是否可用
-    if ! curl -s --head https://deb.debian.org/debian/ | head -n 1 | grep "200 OK" > /dev/null; then
+    if ! curl -s --head https://deb.debian.org/debian/ | head -n 1 | grep "200" > /dev/null; then
         echo -e "${RED}官方Debian镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
         exit 1
     fi
@@ -51,7 +51,7 @@ EOF
 # 更新为清华镜像的函数
 update_tsinghua_mirrors_sources() {
     # 检查清华镜像源是否可用
-    if ! curl -s --head https://mirrors.tuna.tsinghua.edu.cn/debian/ | head -n 1 | grep "200 OK" > /dev/null; then
+    if ! curl -s --head https://mirrors.tuna.tsinghua.edu.cn/debian/ | head -n 1 | grep "200" > /dev/null; then
         echo -e "${RED}清华镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
         exit 1
     fi
@@ -75,7 +75,7 @@ EOF
 # 更新为中科大镜像的函数
 update_ustc_mirrors_sources() {
     # 检查中科大镜像源是否可用
-    if ! curl -s --head https://mirrors.ustc.edu.cn/debian/ | head -n 1 | grep "200 OK" > /dev/null; then
+    if ! curl -s --head https://mirrors.ustc.edu.cn/debian/ | head -n 1 | grep "200" > /dev/null; then
         echo -e "${RED}中科大镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
         exit 1
     fi
@@ -99,7 +99,7 @@ EOF
 # 更新为腾讯云镜像的函数
 update_tencent_mirrors_sources() {
     # 检查腾讯云镜像源是否可用
-    if ! curl -s --head https://mirrors.cloud.tencent.com/debian/ | head -n 1 | grep "200 OK" > /dev/null; then
+    if ! curl -s --head https://mirrors.cloud.tencent.com/debian/ | head -n 1 | grep "200" > /dev/null; then
         echo -e "${RED}腾讯云镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
         exit 1
     fi
@@ -123,7 +123,7 @@ EOF
 # 更新为阿里云镜像的函数
 update_aliyun_mirrors_sources() {
     # 检查阿里云镜像源是否可用
-    if ! curl -s --head https://mirrors.aliyun.com/debian/ | head -n 1 | grep "200 OK" > /dev/null; then
+    if ! curl -s --head https://mirrors.aliyun.com/debian/ | head -n 1 | grep "200" > /dev/null; then
         echo -e "${RED}阿里云镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
         exit 1
     fi
