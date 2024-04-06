@@ -23,7 +23,9 @@ fi
 
 # 备份现有的sources.list
 backup_sources() {
-    cp /etc/apt/sources.list /etc/apt/sources.list.backup
+    backup_path="/etc/apt/sources.list.backup"
+    cp /etc/apt/sources.list "$backup_path"
+    echo -e "${GREEN}源列表已成功备份至：${backup_path}${NC}"
 }
 
 # 更新为官方Debian镜像源的函数
