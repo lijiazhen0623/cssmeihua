@@ -11,6 +11,18 @@ cp /etc/apt/sources.list /etc/apt/sources.list.backup
 
 # 更新为官方Debian镜像源的函数
 update_sources() {
+    # 检查网络连接是否正常
+    if ! ping -c 1 deb.debian.org &> /dev/null; then
+        echo "无法连接到官方Debian镜像源。请检查您的网络连接。"
+        exit 1
+    fi
+
+    # 检查官方Debian源是否可用
+    if ! curl -s --head https://deb.debian.org/debian/ | head -n 1 | grep "200 OK" > /dev/null; then
+        echo "官方Debian镜像源不可用。请稍后再试或选择其他镜像源。"
+        exit 1
+    fi
+
     cat > /etc/apt/sources.list << EOF
 deb https://deb.debian.org/debian/ bullseye main contrib non-free
 deb-src https://deb.debian.org/debian/ bullseye main contrib non-free
@@ -29,6 +41,12 @@ EOF
 
 # 更新为清华镜像的函数
 update_tsinghua_mirrors_sources() {
+    # 检查清华镜像源是否可用
+    if ! curl -s --head https://mirrors.tuna.tsinghua.edu.cn/debian/ | head -n 1 | grep "200 OK" > /dev/null; then
+        echo "清华镜像源不可用。请稍后再试或选择其他镜像源。"
+        exit 1
+    fi
+
     cat > /etc/apt/sources.list << EOF
 deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free
 deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free
@@ -47,6 +65,12 @@ EOF
 
 # 更新为中科大镜像的函数
 update_ustc_mirrors_sources() {
+    # 检查中科大镜像源是否可用
+    if ! curl -s --head https://mirrors.ustc.edu.cn/debian/ | head -n 1 | grep "200 OK" > /dev/null; then
+        echo "中科大镜像源不可用。请稍后再试或选择其他镜像源。"
+        exit 1
+    fi
+
     cat > /etc/apt/sources.list << EOF
 deb https://mirrors.ustc.edu.cn/debian/ bullseye main contrib non-free
 deb-src https://mirrors.ustc.edu.cn/debian/ bullseye main contrib non-free
@@ -65,6 +89,12 @@ EOF
 
 # 更新为腾讯云镜像的函数
 update_tencent_mirrors_sources() {
+    # 检查腾讯云镜像源是否可用
+    if ! curl -s --head https://mirrors.cloud.tencent.com/debian/ | head -n 1 | grep "200 OK" > /dev/null; then
+        echo "腾讯云镜像源不可用。请稍后再试或选择其他镜像源。"
+        exit 1
+    fi
+
     cat > /etc/apt/sources.list << EOF
 deb https://mirrors.cloud.tencent.com/debian/ bullseye main contrib non-free
 deb-src https://mirrors.cloud.tencent.com/debian/ bullseye main contrib non-free
@@ -83,6 +113,12 @@ EOF
 
 # 更新为阿里云镜像的函数
 update_aliyun_mirrors_sources() {
+    # 检查阿里云镜像源是否可用
+    if ! curl -s --head https://mirrors.aliyun.com/debian/ | head -n 1 | grep "200 OK" > /dev/null; then
+        echo "阿里云镜像源不可用。请稍后再试或选择其他镜像源。"
+        exit 1
+    fi
+
     cat > /etc/apt/sources.list << EOF
 deb https://mirrors.aliyun.com/debian/ bullseye main contrib non-free
 deb-src https://mirrors.aliyun.com/debian/ bullseye main contrib non-free
