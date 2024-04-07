@@ -53,6 +53,7 @@ recovery_sources() {
 
 # 更新为官方Debian镜像源的函数
 update_sources() {
+    check_curl
     recovery_sources
     backup_sources
     
@@ -80,6 +81,7 @@ EOF
 
 # 更新为清华镜像的函数
 update_tsinghua_mirrors_sources() {
+    check_curl
     recovery_sources
     backup_sources
 
@@ -107,6 +109,7 @@ EOF
 
 # 更新为中科大镜像的函数
 update_ustc_mirrors_sources() {
+    check_curl
     recovery_sources
     backup_sources
     
@@ -134,6 +137,7 @@ EOF
 
 # 更新为腾讯云镜像的函数
 update_tencent_mirrors_sources() {
+    check_curl
     recovery_sources
     backup_sources
     
@@ -161,6 +165,7 @@ EOF
 
 # 更新为阿里云镜像的函数
 update_aliyun_mirrors_sources() {
+    check_curl
     recovery_sources
     backup_sources
     
