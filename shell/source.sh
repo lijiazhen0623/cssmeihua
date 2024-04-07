@@ -32,7 +32,7 @@ backup_sources() {
 recovery_sources() {
     if [ -f /etc/apt/sources.list.backup ]; then
         cp /etc/apt/sources.list.backup /etc/apt/sources.list
-        echo -e "${GREEN}已保存最开始的sources.list。${NC}"
+        echo -e "${GREEN}正在保存最开始的sources.list。${NC}"
     else
         echo -e "${RED}开始备份${NC}"
     fi
