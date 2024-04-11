@@ -28,6 +28,12 @@ check_curl() {
     fi
 }
 
+# 检查系统是否为 Debian
+if ! lsb_release -d | grep -qi "debian"; then
+    echo -e "${RED}本脚本仅支持 Debian 系统，请在 Debian 系统上运行。${NC}"
+    exit 1
+fi
+
 # 检查用户是否为root
 if [ "$(id -u)" != "0" ]; then
     echo -e "${RED}该脚本必须以root身份运行。${NC}"
