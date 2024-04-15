@@ -34,7 +34,7 @@ check_curl() {
     if ! command -v curl &>/dev/null; then
         echo -e "${YELLOW}未检测到 curl，正在安装 curl...${NC}"
         apt update
-        apt install -y curl --progress-bar
+        apt install -y curl
         if [ $? -ne 0 ]; then
             echo -e "${RED}安装 curl 失败，请手动安装后重新运行脚本。${NC}"
             exit 1
