@@ -347,7 +347,6 @@ check_ddns_install(){
         cop_info
         echo -e "${Tip}DDNS 未安装，现在开始安装..."
         echo
-        check_curl
         install_ddns
         set_cloudflare_api
         set_domain
@@ -369,4 +368,5 @@ check_ddns_install(){
 }
 
 check_root
+check_curl
 check_ddns_install
