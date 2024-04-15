@@ -29,6 +29,21 @@ check_root(){
     fi
 }
 
+# 检测是否安装curl
+check_curl() {
+    if ! command -v curl &>/dev/null; then
+        echo -e "${YELLOW}未检测到 curl，正在安装 curl...${NC}"
+        apt update
+        apt install -y curl --progress-bar
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}安装 curl 失败，请手动安装后重新运行脚本。${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}检测到 curl 已安装.${NC}"
+    fi
+}
+
 # 开始安装DDNS
 install_ddns(){
     if [ ! -f "/usr/bin/ddns" ]; then
@@ -150,20 +165,6 @@ check_ddns_status(){
         else
             ddns_status=dead
         fi
-    fi
-}
-
-check_curl() {
-    if ! command -v curl &>/dev/null; then
-        echo -e "${YELLOW}未检测到 curl，正在安装 curl...${NC}"
-        apt update
-        apt install -y curl --progress-bar
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}安装 curl 失败，请手动安装后重新运行脚本。${NC}"
-            exit 1
-        fi
-    else
-        echo -e "${GREEN}检测到 curl 已安装.${NC}"
     fi
 }
 
