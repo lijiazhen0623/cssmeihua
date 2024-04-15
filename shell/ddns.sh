@@ -32,7 +32,7 @@ check_root(){
 # 检测是否安装curl
 check_curl() {
     if ! command -v curl &>/dev/null; then
-        echo -e "${YELLOW}未检测到 curl，正在安装 curl...${NC}"
+        echo -e ${Tip}未检测到 curl，正在安装 curl...${NC}"
         apt update
         apt install -y curl
         if [ $? -ne 0 ]; then
@@ -40,7 +40,7 @@ check_curl() {
             exit 1
         fi
     else
-        echo -e "${GREEN}检测到 curl 已安装.${NC}"
+        echo -e "${Info}检测到 curl 已安装.${NC}"
     fi
 }
 
@@ -349,6 +349,7 @@ check_ddns_install(){
         cop_info
         echo -e "${Tip}DDNS 未安装，现在开始安装..."
         echo
+        check_curl
         install_ddns
         set_cloudflare_api
         set_domain
@@ -370,5 +371,4 @@ check_ddns_install(){
 }
 
 check_root
-check_curl
 check_ddns_install
