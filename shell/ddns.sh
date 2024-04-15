@@ -153,6 +153,19 @@ check_ddns_status(){
     fi
 }
 
+# 检查是否安装 curl，如果没有安装，则安装 curl
+check_curl() {
+    if ! command -v curl &>/dev/null; then
+        echo -e "${YELLOW}未检测到 curl，正在安装 curl...${NC}"
+        apt update
+        apt install -y curl
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}安装 curl 失败，请手动安装后重新运行脚本。${NC}"
+            exit 1
+        fi
+    fi
+}
+
 # 后续操作
 go_ahead(){
     echo -e "${Tip}选择一个选项：
@@ -334,6 +347,7 @@ check_ddns_install(){
         cop_info
         echo -e "${Tip}DDNS 未安装，现在开始安装..."
         echo
+        check_curl
         install_ddns
         set_cloudflare_api
         set_domain
