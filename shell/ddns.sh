@@ -77,8 +77,8 @@ if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && ("$Public_IPv4" != "
     send_telegram_notification
 fi
 
-# 延迟8秒
-sleep 8
+# 延迟3秒
+sleep 3
 
 # 保存当前的 IP 地址到配置文件，但只有当 IP 地址有变化时才进行更新
 if [[ "$Public_IPv4" != "$Old_Public_IPv4" || "$Public_IPv6" != "$Old_Public_IPv6" ]]; then
