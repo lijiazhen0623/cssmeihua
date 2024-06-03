@@ -109,8 +109,8 @@ Old_Public_IPv4=""
 Old_Public_IPv6=""
 
 for i in "${InterFace[@]}"; do
-    ipv4=$(curl -s4m8 --interface "$i" api64.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
-    ipv6=$(curl -s6m8 --interface "$i" api64.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
+    ipv4=$(curl -s4m8 --interface "$i" api.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
+    ipv6=$(curl -s6m8 --interface "$i" api6.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
     
     # 检查是否获取到IP地址
     if [[ -n "$ipv4" ]]; then
