@@ -109,14 +109,25 @@ Old_Public_IPv4=""
 Old_Public_IPv6=""
 
 for i in "${InterFace[@]}"; do
-    ipv4=$(curl -s4m8 --interface "$i" api.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
-    ipv6=$(curl -s6m8 --interface "$i" api6.ipify.org -k | sed '/^\(2a09\|104\.28\)/d')
-    
-    # 检查是否获取到IP地址
+    # 尝试通过第一个接口获取 IPv4 地址
+    ipv4=$(curl -s4 --max-time 4 --interface "$i" api.ipify.org -k | grep -E -v '^(2a09|104\.28)')
+    if [[ -z "$ipv4" ]]; then
+        # 如果第一个接口失败，尝试通过备用接口获取 IPv4 地址
+        ipv4=$(curl -s4 --max-time 4 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)')
+    fi
+
+    # 尝试通过第一个接口获取 IPv6 地址
+    ipv6=$(curl -s6 --max-time 4 --interface "$i" api6.ipify.org -k | grep -E -v '^(2a09|104\.28)')
+    if [[ -z "$ipv6" ]]; then
+        # 如果第一个接口失败，尝试通过备用接口获取 IPv6 地址
+        ipv6=$(curl -s6 --max-time 4 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)')
+    fi
+
+    # 检查是否获取到 IP 地址
     if [[ -n "$ipv4" ]]; then
         Public_IPv4="$ipv4"
     fi
-    
+
     if [[ -n "$ipv6" ]]; then
         Public_IPv6="$ipv6"
     fi
