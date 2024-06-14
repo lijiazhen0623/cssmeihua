@@ -110,17 +110,17 @@ Old_Public_IPv6=""
 
 for i in "${InterFace[@]}"; do
     # 尝试通过第一个接口获取 IPv4 和 IPv6 地址
-    ipv4=$(curl -s4 --max-time 3 --interface "$i" api.ipify.org -k | grep -E -v '^(2a09|104\.28)')
-    ipv6=$(curl -s6 --max-time 3 --interface "$i" api6.ipify.org -k | grep -E -v '^(2a09|104\.28)')
+    ipv4=$(curl -s4 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
+    ipv6=$(curl -s6 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
 
     # 如果第一个接口的 IPv4 地址获取失败，尝试备用接口
     if [[ -z "$ipv4" ]]; then
-        ipv4=$(curl -s4 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)')
+        ipv4=$(curl -s4 --max-time 3 --interface "$i" https://api.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
     fi
 
     # 如果第一个接口的 IPv6 地址获取失败，尝试备用接口
     if [[ -z "$ipv6" ]]; then
-        ipv6=$(curl -s6 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)')
+        ipv6=$(curl -s6 --max-time 3 --interface "$i" https://api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
     fi
 
 # 验证获取到的 IPv4 地址是否是有效的 IP 地址
