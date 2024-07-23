@@ -16,7 +16,7 @@ clear
 echo -e "${GREEN}######################################
 #        ${RED}Debian DDNS 一键脚本        ${GREEN}#
 #             作者: ${YELLOW}末晨             ${GREEN}#
-#         ${GREEN}https://blog.mochen.one    ${GREEN}#
+#       ${GREEN}https://blog.mochen.one      ${GREEN}#
 ######################################${NC}"
 echo
 }
