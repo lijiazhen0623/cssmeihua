@@ -21,6 +21,12 @@ echo -e "${GREEN}######################################
 echo
 }
 
+# 检查系统是否为 Debian
+if ! lsb_release -d | grep -qi "debian"; then
+    echo -e "${RED}本脚本仅支持 Debian 系统，请在 Debian 系统上运行。${NC}"
+    exit 1
+fi
+
 # 检查是否为root用户
 check_root(){
     if [[ $(whoami) != "root" ]]; then
