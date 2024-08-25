@@ -79,7 +79,7 @@ curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/
      --data "{\"type\":\"AAAA\",\"name\":\"$Domain\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
 
 # 发送Telegram通知
-if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && -n "$Public_IPv4" && ("$Public_IPv4" != "$Old_Public_IPv4" || "$Public_IPv6" != "$Old_Public_IPv6") ]]; then
+if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && (("$Public_IPv4" != "$Old_Public_IPv4" && -n "$Public_IPv4") || ("$Public_IPv6" != "$Old_Public_IPv6" && -n "$Public_IPv6")) ]]; then
     send_telegram_notification
 fi
 
@@ -87,8 +87,12 @@ fi
 sleep 3
 
 # 保存当前的 IP 地址到配置文件，但只有当 IP 地址有变化时才进行更新
-if [[ -n "$Public_IPv4" && ("$Public_IPv4" != "$Old_Public_IPv4" || "$Public_IPv6" != "$Old_Public_IPv6") ]]; then
+if [[ -n "$Public_IPv4" && "$Public_IPv4" != "$Old_Public_IPv4" ]]; then
     sed -i "s/^Old_Public_IPv4=.*/Old_Public_IPv4=\"$Public_IPv4\"/" /etc/DDNS/.config
+fi
+
+# 检查 IPv6 地址是否有效且发生变化
+if [[ -n "$Public_IPv6" && "$Public_IPv6" != "$Old_Public_IPv6" ]]; then
     sed -i "s/^Old_Public_IPv6=.*/Old_Public_IPv6=\"$Public_IPv6\"/" /etc/DDNS/.config
 fi
 EOF
