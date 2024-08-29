@@ -374,12 +374,14 @@ WantedBy=multi-user.target'
 restart_ddns(){
     systemctl restart ddns.service >/dev/null 2>&1
     systemctl restart ddns.timer >/dev/null 2>&1
+    echo -e "${Info}DDNS 已重启！"
 }
 
 # 停止DDNS服务
 stop_ddns(){
     systemctl stop ddns.service >/dev/null 2>&1
     systemctl stop ddns.timer >/dev/null 2>&1
+    echo -e "${Info}DDNS 已停止！"
 }
 
 # 检查是否安装DDNS
