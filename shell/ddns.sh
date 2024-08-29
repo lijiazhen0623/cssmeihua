@@ -202,10 +202,11 @@ go_ahead(){
     echo -e "${Tip}选择一个选项：
   ${GREEN}0${NC}：退出
   ${GREEN}1${NC}：重启 DDNS
-  ${GREEN}2${NC}：${RED}卸载 DDNS${NC}
-  ${GREEN}3${NC}：修改要解析的域名
-  ${GREEN}4${NC}：修改 Cloudflare Api
-  ${GREEN}5${NC}：配置 Telegram 通知"
+  ${GREEN}2${NC}：停止 DDNS
+  ${GREEN}3${NC}：${RED}卸载 DDNS${NC}
+  ${GREEN}4${NC}：修改要解析的域名
+  ${GREEN}5${NC}：修改 Cloudflare Api
+  ${GREEN}6${NC}：配置 Telegram 通知"
     echo
     read -p "选项: " option
     until [[ "$option" =~ ^[0-5]$ ]]; do
@@ -222,19 +223,22 @@ go_ahead(){
             check_ddns_install
         ;;
         2)
+            stop_ddns
+        ;;
+        3)
             systemctl disable ddns.service ddns.timer >/dev/null 2>&1
             systemctl stop ddns.service ddns.timer >/dev/null 2>&1
             rm -rf /etc/systemd/system/ddns.service /etc/systemd/system/ddns.timer /etc/DDNS /usr/bin/ddns
             echo -e "${Info}DDNS 已卸载！"
             echo
         ;;
-        3)
+        4)
             set_domain
             restart_ddns
             sleep 2
             check_ddns_install
         ;;
-        4)
+        5)
             set_cloudflare_api
             set_domain
             if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
@@ -246,7 +250,7 @@ go_ahead(){
             fi
             check_ddns_install
         ;;
-        5)
+        6)
             set_telegram_settings
             check_ddns_install
         ;;
@@ -370,6 +374,12 @@ WantedBy=multi-user.target'
 restart_ddns(){
     systemctl restart ddns.service >/dev/null 2>&1
     systemctl restart ddns.timer >/dev/null 2>&1
+}
+
+# 停止DDNS服务
+stop_ddns(){
+    systemctl stop ddns.service >/dev/null 2>&1
+    systemctl stop ddns.timer >/dev/null 2>&1
 }
 
 # 检查是否安装DDNS
