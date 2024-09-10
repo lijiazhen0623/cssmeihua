@@ -173,12 +173,18 @@ DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/d
 
 # 发送 Telegram 通知函数
 send_telegram_notification(){
+    # 构建基础的通知消息（仅包含IPv4）
+    local message="$Domain 的 IPv4 地址已更新为 $Public_IPv4。旧 IP 地址为 $Old_Public_IPv4。"
+
+    # 如果 Domainv6 存在，添加 IPv6 更新信息
+    if [ -n "$Domainv6" ] && [ -n "$Public_IPv6" ] && [ -n "$Old_Public_IPv6" ]; then
+        message+="\n\n$Domainv6 的 IPv6 地址已更新为 $Public_IPv6。旧 IP 地址为 $Old_Public_IPv6。"
+    fi
+
+    # 发送通知
     curl -s -X POST "https://api.telegram.org/bot$Telegram_Bot_Token/sendMessage" \
         -d "chat_id=$Telegram_Chat_ID" \
-        -d "text=$Domain 的 IP 地址已更新为
-$Public_IPv4 (IPv4) 和 $Public_IPv6 (IPv6)。
-旧 IP 地址为
-$Old_Public_IPv4 (IPv4) 和 $Old_Public_IPv6 (IPv6)。"
+        -d "text=$message"
 }
 
 EOF
