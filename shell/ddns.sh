@@ -21,9 +21,9 @@ echo -e "${GREEN}######################################
 echo
 }
 
-# 检查系统是否为 Debian
-if ! grep -qi "debian" /etc/os-release; then
-    echo -e "${RED}本脚本仅支持 Debian 系统，请在 Debian 系统上运行。${NC}"
+# 检查系统是否为 Debian 或 Ubuntu
+if ! grep -qiE "debian|ubuntu" /etc/os-release; then
+    echo -e "${RED}本脚本仅支持 Debian 或 Ubuntu 系统，请在 Debian 或 Ubuntu 系统上运行。${NC}"
     exit 1
 fi
 
