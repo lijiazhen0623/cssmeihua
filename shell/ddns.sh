@@ -297,39 +297,41 @@ set_cloudflare_api(){
 
 # 设置解析的域名
 set_domain(){
-    echo -e "${Tip}请输入您解析的IPv4域名"
-    read -rp "IPv4域名: " DOmain
-    if [ -z "$DOmain" ]; then
-        echo -e "${Error}未输入IPv4域名，无法执行操作！"
-        exit 1
+    # 检查是否有IPv4
+    ipv4_check=$(curl -s ip.sb -4)
+    if [ -n "$ipv4_check" ]; then
+        echo -e "${Info}检测到IPv4地址: ${ipv4_check}"
+        echo -e "${Tip}请输入您解析的IPv4域名 (或按回车跳过)"
+        read -rp "IPv4域名: " DOmain
+        if [ -z "$DOmain" ]; then
+            echo -e "${Info}跳过IPv4域名设置。"
+        else
+            DOMAIN="$DOmain"
+            echo -e "${Info}你的IPv4域名：${RED_ground}${DOMAIN}${NC}"
+            # 更新 .config 文件中的IPv4域名
+            sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
+        fi
     else
-        DOMAIN="$DOmain"
+        echo -e "${Info}未检测到IPv4地址，跳过IPv4域名设置。"
     fi
-    echo -e "${Info}你的IPv4域名：${RED_ground}${DOMAIN}${NC}"
-    echo
 
     # 检查是否有IPv6
     ipv6_check=$(curl -s ip.sb -6)
     if [ -n "$ipv6_check" ]; then
         echo -e "${Info}检测到IPv6地址: ${ipv6_check}"
-        echo -e "${Tip}请输入您解析的IPv6域名"
+        echo -e "${Tip}请输入您解析的IPv6域名 (或按回车跳过)"
         read -rp "IPv6域名: " DOmainv6
         if [ -z "$DOmainv6" ]; then
-            echo -e "${Error}未输入IPv6域名，无法执行操作！"
-            exit 1
+            echo -e "${Info}跳过IPv6域名设置。"
         else
             DOMAINV6="$DOmainv6"
+            echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
+            # 更新 .config 文件中的IPv6域名
+            sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
         fi
-        echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
-        
-        # 更新 .config 文件中的IPv6域名
-        sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
     else
         echo -e "${Info}未检测到IPv6地址，跳过IPv6域名设置。"
     fi
-
-    # 更新 .config 文件中的IPv4域名
-    sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
 }
 
 # 设置Telegram参数
