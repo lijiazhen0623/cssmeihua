@@ -76,7 +76,7 @@ curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/
      -H "X-Auth-Email: $Email" \
      -H "X-Auth-Key: $Api_key" \
      -H "Content-Type: application/json" \
-     --data "{\"type\":\"AAAA\",\"name\":\"$Domain\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
+     --data "{\"type\":\"AAAA\",\"name\":\"$Domainv6\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
 
 # 发送Telegram通知
 if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && (("$Public_IPv4" != "$Old_Public_IPv4" && -n "$Public_IPv4") || ("$Public_IPv6" != "$Old_Public_IPv6" && -n "$Public_IPv6")) ]]; then
@@ -98,6 +98,7 @@ fi
 EOF
     cat <<'EOF' > /etc/DDNS/.config
 Domain="your_domain.com"		# 你要解析的域名
+Domainv6="your_domainv6.com" 
 Email="your_email@gmail.com"     # 你在Cloudflare注册的邮箱
 Api_key="your_api_key"  # 你的Cloudflare API密钥
 
@@ -164,7 +165,7 @@ DNS_IDv4=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/d
      | grep -Po '(?<="id":")[^"]*' | head -1)
 
 # 获取IPv6 DNS记录ID
-DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=AAAA&name=$Domain" \
+DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=AAAA&name=$Domainv6" \
      -H "X-Auth-Email: $Email" \
      -H "X-Auth-Key: $Api_key" \
      -H "Content-Type: application/json" \
@@ -290,17 +291,38 @@ set_cloudflare_api(){
 
 # 设置解析的域名
 set_domain(){
-    echo -e "${Tip}请输入您解析的域名"
-    read -rp "域名: " DOmain
+    echo -e "${Tip}请输入您解析的IPv4域名"
+    read -rp "IPv4域名: " DOmain
     if [ -z "$DOmain" ]; then
-        echo -e "${Error}未输入域名，无法执行操作！"
+        echo -e "${Error}未输入IPv4域名，无法执行操作！"
         exit 1
     else
         DOMAIN="$DOmain"
     fi
-    echo -e "${Info}你的域名：${RED_ground}${DOMAIN}${NC}"
+    echo -e "${Info}你的IPv4域名：${RED_ground}${DOMAIN}${NC}"
     echo
 
+    # 检查是否有IPv6
+    ipv6_check=$(curl -s ip.sb -6)
+    if [ -n "$ipv6_check" ]; then
+        echo -e "${Info}检测到IPv6地址: ${ipv6_check}"
+        echo -e "${Tip}请输入您解析的IPv6域名"
+        read -rp "IPv6域名: " DOmainv6
+        if [ -z "$DOmainv6" ]; then
+            echo -e "${Error}未输入IPv6域名，无法执行操作！"
+            exit 1
+        else
+            DOMAINV6="$DOmainv6"
+        fi
+        echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
+        
+        # 更新 .config 文件中的IPv6域名
+        sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
+    else
+        echo -e "${Info}未检测到IPv6地址，跳过IPv6域名设置。"
+    fi
+
+    # 更新 .config 文件中的IPv4域名
     sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
 }
 
