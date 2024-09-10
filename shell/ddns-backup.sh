@@ -14,12 +14,18 @@ Tip="${YELLOW}[提示]${NC}"
 cop_info(){
 clear
 echo -e "${GREEN}######################################
-#            ${RED}DDNS 一键脚本           ${GREEN}#
+#        ${RED}Debian DDNS 一键脚本        ${GREEN}#
 #             作者: ${YELLOW}末晨             ${GREEN}#
-#         ${GREEN}https://blog.mochen.one    ${GREEN}#
+#       ${GREEN}https://blog.mochen.one      ${GREEN}#
 ######################################${NC}"
 echo
 }
+
+# 检查系统是否为 Debian
+if ! grep -qi "debian" /etc/os-release; then
+    echo -e "${RED}本脚本仅支持 Debian 系统，请在 Debian 系统上运行。${NC}"
+    exit 1
+fi
 
 # 检查是否为root用户
 check_root(){
@@ -73,7 +79,7 @@ curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/
      --data "{\"type\":\"AAAA\",\"name\":\"$Domain\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
 
 # 发送Telegram通知
-if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && ("$Public_IPv4" != "$Old_Public_IPv4" || "$Public_IPv6" != "$Old_Public_IPv6") ]]; then
+if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && (("$Public_IPv4" != "$Old_Public_IPv4" && -n "$Public_IPv4") || ("$Public_IPv6" != "$Old_Public_IPv6" && -n "$Public_IPv6")) ]]; then
     send_telegram_notification
 fi
 
@@ -81,8 +87,12 @@ fi
 sleep 3
 
 # 保存当前的 IP 地址到配置文件，但只有当 IP 地址有变化时才进行更新
-if [[ "$Public_IPv4" != "$Old_Public_IPv4" || "$Public_IPv6" != "$Old_Public_IPv6" ]]; then
+if [[ -n "$Public_IPv4" && "$Public_IPv4" != "$Old_Public_IPv4" ]]; then
     sed -i "s/^Old_Public_IPv4=.*/Old_Public_IPv4=\"$Public_IPv4\"/" /etc/DDNS/.config
+fi
+
+# 检查 IPv6 地址是否有效且发生变化
+if [[ -n "$Public_IPv6" && "$Public_IPv6" != "$Old_Public_IPv6" ]]; then
     sed -i "s/^Old_Public_IPv6=.*/Old_Public_IPv6=\"$Public_IPv6\"/" /etc/DDNS/.config
 fi
 EOF
@@ -107,6 +117,8 @@ Public_IPv4=""
 Public_IPv6=""
 Old_Public_IPv4=""
 Old_Public_IPv6=""
+ipv4Regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
+ipv6Regex="^([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])$"
 
 for i in "${InterFace[@]}"; do
     # 尝试通过第一个接口获取 IPv4 和 IPv6 地址
@@ -124,14 +136,16 @@ for i in "${InterFace[@]}"; do
     fi
 
 # 验证获取到的 IPv4 地址是否是有效的 IP 地址
-    if [[ -n "$ipv4" && "$ipv4" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    if [[ -n "$ipv4" && "$ipv4" =~ $ipv4Regex ]]; then
         Public_IPv4="$ipv4"
     else
         ipv4=""
     fi
 
-    if [[ -n "$ipv6" ]]; then
+    if [[ -n "$ipv6" && "$ipv6" =~ $ipv6Regex ]]; then
         Public_IPv6="$ipv6"
+    else
+        ipv6=""
     fi
 done
 
@@ -188,10 +202,11 @@ go_ahead(){
     echo -e "${Tip}选择一个选项：
   ${GREEN}0${NC}：退出
   ${GREEN}1${NC}：重启 DDNS
-  ${GREEN}2${NC}：${RED}卸载 DDNS${NC}
-  ${GREEN}3${NC}：修改要解析的域名
-  ${GREEN}4${NC}：修改 Cloudflare Api
-  ${GREEN}5${NC}：配置 Telegram 通知"
+  ${GREEN}2${NC}：停止 DDNS
+  ${GREEN}3${NC}：${RED}卸载 DDNS${NC}
+  ${GREEN}4${NC}：修改要解析的域名
+  ${GREEN}5${NC}：修改 Cloudflare Api
+  ${GREEN}6${NC}：配置 Telegram 通知"
     echo
     read -p "选项: " option
     until [[ "$option" =~ ^[0-5]$ ]]; do
@@ -208,19 +223,22 @@ go_ahead(){
             check_ddns_install
         ;;
         2)
+            stop_ddns
+        ;;
+        3)
             systemctl disable ddns.service ddns.timer >/dev/null 2>&1
             systemctl stop ddns.service ddns.timer >/dev/null 2>&1
             rm -rf /etc/systemd/system/ddns.service /etc/systemd/system/ddns.timer /etc/DDNS /usr/bin/ddns
             echo -e "${Info}DDNS 已卸载！"
             echo
         ;;
-        3)
+        4)
             set_domain
             restart_ddns
             sleep 2
             check_ddns_install
         ;;
-        4)
+        5)
             set_cloudflare_api
             set_domain
             if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
@@ -232,7 +250,7 @@ go_ahead(){
             fi
             check_ddns_install
         ;;
-        5)
+        6)
             set_telegram_settings
             check_ddns_install
         ;;
@@ -356,6 +374,14 @@ WantedBy=multi-user.target'
 restart_ddns(){
     systemctl restart ddns.service >/dev/null 2>&1
     systemctl restart ddns.timer >/dev/null 2>&1
+    echo -e "${Info}DDNS 已重启！"
+}
+
+# 停止DDNS服务
+stop_ddns(){
+    systemctl stop ddns.service >/dev/null 2>&1
+    systemctl stop ddns.timer >/dev/null 2>&1
+    echo -e "${Info}DDNS 已停止！"
 }
 
 # 检查是否安装DDNS
