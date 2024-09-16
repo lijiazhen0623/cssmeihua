@@ -326,31 +326,37 @@ set_domain(){
         echo -e "${Info}检测到IPv6地址: ${ipv6_check}"
 
         # 检查是否开启 IPv6 解析
-        echo -e "${Tip}是否开启 IPv6 解析？(y/n)"
-        read -rp "选择: " enable_ipv6
+        while true; do
+            echo -e "${Tip}是否开启 IPv6 解析？(y/n)"
+            read -rp "选择: " enable_ipv6
 
-        if [[ "$enable_ipv6" =~ ^[Yy]$ ]]; then
-            ipv6_set="true"
-            # 更新 .config 文件中的 ipv6_set 为 true
-            sed -i 's/^#\?ipv6_set=".*"/ipv6_set="true"/g' /etc/DDNS/.config
+            if [[ "$enable_ipv6" =~ ^[Yy]$ ]]; then
+                ipv6_set="true"
+                # 更新 .config 文件中的 ipv6_set 为 true
+                sed -i 's/^#\?ipv6_set=".*"/ipv6_set="true"/g' /etc/DDNS/.config
 
-            echo -e "${Tip}请输入您解析的IPv6域名 (或按回车跳过)"
-            read -rp "IPv6域名: " DOmainv6
+                echo -e "${Tip}请输入您解析的IPv6域名 (或按回车跳过)"
+                read -rp "IPv6域名: " DOmainv6
 
-            if [ -z "$DOmainv6" ]; then
-                echo -e "${Info}跳过IPv6域名设置。"
+                if [ -z "$DOmainv6" ]; then
+                    echo -e "${Info}跳过IPv6域名设置。"
+                else
+                    DOMAINV6="$DOmainv6"
+                    echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
+                    # 更新 .config 文件中的IPv6域名
+                    sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
+                fi
+                break
+            elif [[ "$enable_ipv6" =~ ^[Nn]$ ]]; then
+                ipv6_set="false"
+                # 更新 .config 文件中的 ipv6_set 为 false
+                sed -i 's/^#\?ipv6_set=".*"/ipv6_set="false"/g' /etc/DDNS/.config
+                echo -e "${Info}IPv6 解析未开启，跳过 IPv6 域名设置。"
+                break
             else
-                DOMAINV6="$DOmainv6"
-                echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
-                # 更新 .config 文件中的IPv6域名
-                sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
+                echo -e "${Error}无效输入，请输入 'y' 或 'n'。"
             fi
-        else
-            ipv6_set="false"
-            # 更新 .config 文件中的 ipv6_set 为 false
-            sed -i 's/^#\?ipv6_set=".*"/ipv6_set="false"/g' /etc/DDNS/.config
-            echo -e "${Info}IPv6 解析未开启，跳过 IPv6 域名设置。"
-        fi
+        done
     else
         echo -e "${Info}未检测到IPv6地址，跳过IPv6域名设置。"
         ipv6_set="false"
