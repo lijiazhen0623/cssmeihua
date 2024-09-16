@@ -100,7 +100,7 @@ fi
 EOF
     cat <<'EOF' > /etc/DDNS/.config
 Domain="your_domain.com"		# 你要解析的域名
-ipv6_set="flase"                 #开启ipv6
+ipv6_set="set"                 #开启ipv6
 Domainv6="your_domainv6.com" 
 Email="your_email@gmail.com"     # 你在Cloudflare注册的邮箱
 Api_key="your_api_key"  # 你的Cloudflare API密钥
