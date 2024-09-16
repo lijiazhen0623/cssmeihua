@@ -72,11 +72,13 @@ curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/
      --data "{\"type\":\"A\",\"name\":\"$Domain\",\"content\":\"$Public_IPv4\"}" >/dev/null 2>&1
 
 # 更新IPv6 DNS记录
-curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv6" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     --data "{\"type\":\"AAAA\",\"name\":\"$Domainv6\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
+if [ "$ipv6_set" = true ] && [ -n "$Domainv6" ] && [ "$Domainv6" != "your_domainv6.com" ]; then
+    curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv6" \
+         -H "X-Auth-Email: $Email" \
+         -H "X-Auth-Key: $Api_key" \
+         -H "Content-Type: application/json" \
+         --data "{\"type\":\"AAAA\",\"name\":\"$Domainv6\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
+fi
 
 # 发送Telegram通知
 if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && (("$Public_IPv4" != "$Old_Public_IPv4" && -n "$Public_IPv4") || ("$Public_IPv6" != "$Old_Public_IPv6" && -n "$Public_IPv6")) ]]; then
@@ -98,6 +100,7 @@ fi
 EOF
     cat <<'EOF' > /etc/DDNS/.config
 Domain="your_domain.com"		# 你要解析的域名
+ipv6_set="set"                 #开启ipv6
 Domainv6="your_domainv6.com" 
 Email="your_email@gmail.com"     # 你在Cloudflare注册的邮箱
 Api_key="your_api_key"  # 你的Cloudflare API密钥
@@ -122,31 +125,37 @@ ipv4Regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
 ipv6Regex="^([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])$"
 
 for i in "${InterFace[@]}"; do
-    # 尝试通过第一个接口获取 IPv4 和 IPv6 地址
+    # 尝试通过第一个接口获取 IPv4 地址
     ipv4=$(curl -s4 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
-    ipv6=$(curl -s6 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
 
     # 如果第一个接口的 IPv4 地址获取失败，尝试备用接口
     if [[ -z "$ipv4" ]]; then
         ipv4=$(curl -s4 --max-time 3 --interface "$i" https://api.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
     fi
 
-    # 如果第一个接口的 IPv6 地址获取失败，尝试备用接口
-    if [[ -z "$ipv6" ]]; then
-        ipv6=$(curl -s6 --max-time 3 --interface "$i" https://api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
-    fi
-
-# 验证获取到的 IPv4 地址是否是有效的 IP 地址
+    # 验证获取到的 IPv4 地址是否是有效的 IP 地址
     if [[ -n "$ipv4" && "$ipv4" =~ $ipv4Regex ]]; then
         Public_IPv4="$ipv4"
     else
         ipv4=""
     fi
 
-    if [[ -n "$ipv6" && "$ipv6" =~ $ipv6Regex ]]; then
-        Public_IPv6="$ipv6"
-    else
-        ipv6=""
+    # 检查是否启用了 IPv6 解析
+    if [[ "$ipv6_set" == "true" ]]; then
+        # 尝试通过第一个接口获取 IPv6 地址
+        ipv6=$(curl -s6 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
+
+        # 如果第一个接口的 IPv6 地址获取失败，尝试备用接口
+        if [[ -z "$ipv6" ]]; then
+            ipv6=$(curl -s6 --max-time 3 --interface "$i" https://api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
+        fi
+
+        # 验证获取到的 IPv6 地址是否是有效的 IP 地址
+        if [[ -n "$ipv6" && "$ipv6" =~ $ipv6Regex ]]; then
+            Public_IPv6="$ipv6"
+        else
+            ipv6=""
+        fi
     fi
 done
 
@@ -165,11 +174,13 @@ DNS_IDv4=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/d
      | grep -Po '(?<="id":")[^"]*' | head -1)
 
 # 获取IPv6 DNS记录ID
-DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=AAAA&name=$Domainv6" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     | grep -Po '(?<="id":")[^"]*' | head -1)
+if [ "$ipv6_set" = true ] && [ -n "$Domainv6" ] && [ "$Domainv6" != "your_domainv6.com" ]; then
+    DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=AAAA&name=$Domainv6" \
+         -H "X-Auth-Email: $Email" \
+         -H "X-Auth-Key: $Api_key" \
+         -H "Content-Type: application/json" \
+         | grep -Po '(?<="id":")[^"]*' | head -1)
+fi
 
 # 发送 Telegram 通知函数
 send_telegram_notification(){
@@ -319,24 +330,50 @@ set_domain(){
     ipv6_check=$(curl -s ip.sb -6)
     if [ -n "$ipv6_check" ]; then
         echo -e "${Info}检测到IPv6地址: ${ipv6_check}"
-        echo -e "${Tip}请输入您解析的IPv6域名 (或按回车跳过)"
-        read -rp "IPv6域名: " DOmainv6
-        if [ -z "$DOmainv6" ]; then
-            echo -e "${Info}跳过IPv6域名设置。"
-        else
-            DOMAINV6="$DOmainv6"
-            echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
-            # 更新 .config 文件中的IPv6域名
-            sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
-        fi
+
+        # 检查是否开启 IPv6 解析
+        while true; do
+            echo -e "${Tip}是否开启 IPv6 解析？(y/n)"
+            read -rp "选择: " enable_ipv6
+
+            if [[ "$enable_ipv6" =~ ^[Yy]$ ]]; then
+                ipv6_set="true"
+                # 更新 .config 文件中的 ipv6_set 为 true
+                sed -i 's/^#\?ipv6_set=".*"/ipv6_set="true"/g' /etc/DDNS/.config
+
+                echo -e "${Tip}请输入您解析的IPv6域名 (或按回车跳过)"
+                read -rp "IPv6域名: " DOmainv6
+
+                if [ -z "$DOmainv6" ]; then
+                    echo -e "${Info}跳过IPv6域名设置。"
+                else
+                    DOMAINV6="$DOmainv6"
+                    echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
+                    # 更新 .config 文件中的IPv6域名
+                    sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
+                fi
+                break
+            elif [[ "$enable_ipv6" =~ ^[Nn]$ ]]; then
+                ipv6_set="false"
+                # 更新 .config 文件中的 ipv6_set 为 false
+                sed -i 's/^#\?ipv6_set=".*"/ipv6_set="false"/g' /etc/DDNS/.config
+                echo -e "${Info}IPv6 解析未开启，跳过 IPv6 域名设置。"
+                break
+            else
+                echo -e "${Error}无效输入，请输入 'y' 或 'n'。"
+            fi
+        done
     else
         echo -e "${Info}未检测到IPv6地址，跳过IPv6域名设置。"
+        ipv6_set="false"
+        # 更新 .config 文件中的 ipv6_set 为 false
+        sed -i 's/^#\?ipv6_set=".*"/ipv6_set="false"/g' /etc/DDNS/.config
     fi
 }
 
 # 设置Telegram参数
 set_telegram_settings(){
-    echo -e "${RED_ground}开始配置Telegram通知设置...${NC}"
+    echo -e "${Info}开始配置Telegram通知设置..."
     echo
 
     echo -e "${Tip}请输入您的Telegram Bot Token，如果不使用Telegram通知请直接按 Enter 跳过"
