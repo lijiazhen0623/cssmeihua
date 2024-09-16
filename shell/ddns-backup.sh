@@ -72,11 +72,13 @@ curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/
      --data "{\"type\":\"A\",\"name\":\"$Domain\",\"content\":\"$Public_IPv4\"}" >/dev/null 2>&1
 
 # 更新IPv6 DNS记录
-curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv6" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     --data "{\"type\":\"AAAA\",\"name\":\"$Domainv6\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
+if [ "$ipv6_set" = true ] && [ -n "$Domainv6" ] && [ "$Domainv6" != "your_domainv6.com" ]; then
+    curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv6" \
+         -H "X-Auth-Email: $Email" \
+         -H "X-Auth-Key: $Api_key" \
+         -H "Content-Type: application/json" \
+         --data "{\"type\":\"AAAA\",\"name\":\"$Domainv6\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
+fi
 
 # 发送Telegram通知
 if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && (("$Public_IPv4" != "$Old_Public_IPv4" && -n "$Public_IPv4") || ("$Public_IPv6" != "$Old_Public_IPv6" && -n "$Public_IPv6")) ]]; then
@@ -98,6 +100,7 @@ fi
 EOF
     cat <<'EOF' > /etc/DDNS/.config
 Domain="your_domain.com"		# 你要解析的域名
+ipv6_set="flase"                 #开启ipv6
 Domainv6="your_domainv6.com" 
 Email="your_email@gmail.com"     # 你在Cloudflare注册的邮箱
 Api_key="your_api_key"  # 你的Cloudflare API密钥
@@ -165,11 +168,13 @@ DNS_IDv4=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/d
      | grep -Po '(?<="id":")[^"]*' | head -1)
 
 # 获取IPv6 DNS记录ID
-DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=AAAA&name=$Domainv6" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     | grep -Po '(?<="id":")[^"]*' | head -1)
+if [ "$ipv6_set" = true ] && [ -n "$Domainv6" ] && [ "$Domainv6" != "your_domainv6.com" ]; then
+    DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=AAAA&name=$Domainv6" \
+         -H "X-Auth-Email: $Email" \
+         -H "X-Auth-Key: $Api_key" \
+         -H "Content-Type: application/json" \
+         | grep -Po '(?<="id":")[^"]*' | head -1)
+fi
 
 # 发送 Telegram 通知函数
 send_telegram_notification(){
@@ -319,18 +324,38 @@ set_domain(){
     ipv6_check=$(curl -s ip.sb -6)
     if [ -n "$ipv6_check" ]; then
         echo -e "${Info}检测到IPv6地址: ${ipv6_check}"
-        echo -e "${Tip}请输入您解析的IPv6域名 (或按回车跳过)"
-        read -rp "IPv6域名: " DOmainv6
-        if [ -z "$DOmainv6" ]; then
-            echo -e "${Info}跳过IPv6域名设置。"
+
+        # 检查是否开启 IPv6 解析
+        echo -e "${Tip}是否开启 IPv6 解析？(y/n)"
+        read -rp "选择: " enable_ipv6
+
+        if [[ "$enable_ipv6" =~ ^[Yy]$ ]]; then
+            ipv6_set="true"
+            # 更新 .config 文件中的 ipv6_set 为 true
+            sed -i 's/^#\?ipv6_set=".*"/ipv6_set="true"/g' /etc/DDNS/.config
+
+            echo -e "${Tip}请输入您解析的IPv6域名 (或按回车跳过)"
+            read -rp "IPv6域名: " DOmainv6
+
+            if [ -z "$DOmainv6" ]; then
+                echo -e "${Info}跳过IPv6域名设置。"
+            else
+                DOMAINV6="$DOmainv6"
+                echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
+                # 更新 .config 文件中的IPv6域名
+                sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
+            fi
         else
-            DOMAINV6="$DOmainv6"
-            echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
-            # 更新 .config 文件中的IPv6域名
-            sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
+            ipv6_set="false"
+            # 更新 .config 文件中的 ipv6_set 为 false
+            sed -i 's/^#\?ipv6_set=".*"/ipv6_set="false"/g' /etc/DDNS/.config
+            echo -e "${Info}IPv6 解析未开启，跳过 IPv6 域名设置。"
         fi
     else
         echo -e "${Info}未检测到IPv6地址，跳过IPv6域名设置。"
+        ipv6_set="false"
+        # 更新 .config 文件中的 ipv6_set 为 false
+        sed -i 's/^#\?ipv6_set=".*"/ipv6_set="false"/g' /etc/DDNS/.config
     fi
 }
 
