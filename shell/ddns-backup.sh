@@ -21,9 +21,9 @@ echo -e "${GREEN}######################################
 echo
 }
 
-# 检查系统是否为 Debian
-if ! grep -qi "debian" /etc/os-release; then
-    echo -e "${RED}本脚本仅支持 Debian 系统，请在 Debian 系统上运行。${NC}"
+# 检查系统是否为 Debian 或 Ubuntu
+if ! grep -qiE "debian|ubuntu" /etc/os-release; then
+    echo -e "${RED}本脚本仅支持 Debian 或 Ubuntu 系统，请在 Debian 或 Ubuntu 系统上运行。${NC}"
     exit 1
 fi
 
@@ -76,7 +76,7 @@ curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/
      -H "X-Auth-Email: $Email" \
      -H "X-Auth-Key: $Api_key" \
      -H "Content-Type: application/json" \
-     --data "{\"type\":\"AAAA\",\"name\":\"$Domain\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
+     --data "{\"type\":\"AAAA\",\"name\":\"$Domainv6\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
 
 # 发送Telegram通知
 if [[ -n "$Telegram_Bot_Token" && -n "$Telegram_Chat_ID" && (("$Public_IPv4" != "$Old_Public_IPv4" && -n "$Public_IPv4") || ("$Public_IPv6" != "$Old_Public_IPv6" && -n "$Public_IPv6")) ]]; then
@@ -98,6 +98,7 @@ fi
 EOF
     cat <<'EOF' > /etc/DDNS/.config
 Domain="your_domain.com"		# 你要解析的域名
+Domainv6="your_domainv6.com" 
 Email="your_email@gmail.com"     # 你在Cloudflare注册的邮箱
 Api_key="your_api_key"  # 你的Cloudflare API密钥
 
@@ -164,7 +165,7 @@ DNS_IDv4=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/d
      | grep -Po '(?<="id":")[^"]*' | head -1)
 
 # 获取IPv6 DNS记录ID
-DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=AAAA&name=$Domain" \
+DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=AAAA&name=$Domainv6" \
      -H "X-Auth-Email: $Email" \
      -H "X-Auth-Key: $Api_key" \
      -H "Content-Type: application/json" \
@@ -172,12 +173,18 @@ DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/d
 
 # 发送 Telegram 通知函数
 send_telegram_notification(){
+    # 构建基础的通知消息（仅包含IPv4）
+    local message="$Domain 的 IPv4 地址已更新为 $Public_IPv4 。旧 IP 地址为 $Old_Public_IPv4 。"
+
+    # 如果 Domainv6 存在，添加 IPv6 更新信息
+    if [ -n "$Domainv6" ] && [ "$Domainv6" != "your_domainv6.com" ]; then
+        message+="$Domainv6 的 IPv6 地址已更新为 $Public_IPv6 。旧 IP 地址为 $Old_Public_IPv6 。"
+    fi
+
+    # 发送通知
     curl -s -X POST "https://api.telegram.org/bot$Telegram_Bot_Token/sendMessage" \
         -d "chat_id=$Telegram_Chat_ID" \
-        -d "text=$Domain 的 IP 地址已更新为
-$Public_IPv4 (IPv4) 和 $Public_IPv6 (IPv6)。
-旧 IP 地址为
-$Old_Public_IPv4 (IPv4) 和 $Old_Public_IPv6 (IPv6)。"
+        -d "text=$message"
 }
 
 EOF
@@ -290,18 +297,41 @@ set_cloudflare_api(){
 
 # 设置解析的域名
 set_domain(){
-    echo -e "${Tip}请输入您解析的域名"
-    read -rp "域名: " DOmain
-    if [ -z "$DOmain" ]; then
-        echo -e "${Error}未输入域名，无法执行操作！"
-        exit 1
+    # 检查是否有IPv4
+    ipv4_check=$(curl -s ip.sb -4)
+    if [ -n "$ipv4_check" ]; then
+        echo -e "${Info}检测到IPv4地址: ${ipv4_check}"
+        echo -e "${Tip}请输入您解析的IPv4域名 (或按回车跳过)"
+        read -rp "IPv4域名: " DOmain
+        if [ -z "$DOmain" ]; then
+            echo -e "${Info}跳过IPv4域名设置。"
+        else
+            DOMAIN="$DOmain"
+            echo -e "${Info}你的IPv4域名：${RED_ground}${DOMAIN}${NC}"
+            # 更新 .config 文件中的IPv4域名
+            sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
+        fi
     else
-        DOMAIN="$DOmain"
+        echo -e "${Info}未检测到IPv4地址，跳过IPv4域名设置。"
     fi
-    echo -e "${Info}你的域名：${RED_ground}${DOMAIN}${NC}"
-    echo
 
-    sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
+    # 检查是否有IPv6
+    ipv6_check=$(curl -s ip.sb -6)
+    if [ -n "$ipv6_check" ]; then
+        echo -e "${Info}检测到IPv6地址: ${ipv6_check}"
+        echo -e "${Tip}请输入您解析的IPv6域名 (或按回车跳过)"
+        read -rp "IPv6域名: " DOmainv6
+        if [ -z "$DOmainv6" ]; then
+            echo -e "${Info}跳过IPv6域名设置。"
+        else
+            DOMAINV6="$DOmainv6"
+            echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
+            # 更新 .config 文件中的IPv6域名
+            sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
+        fi
+    else
+        echo -e "${Info}未检测到IPv6地址，跳过IPv6域名设置。"
+    fi
 }
 
 # 设置Telegram参数
