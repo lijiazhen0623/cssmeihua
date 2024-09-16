@@ -373,7 +373,7 @@ set_domain(){
 
 # 设置Telegram参数
 set_telegram_settings(){
-    echo -e "${Tip}开始配置Telegram通知设置...${NC}"
+    echo -e "${Info}开始配置Telegram通知设置..."
     echo
 
     echo -e "${Tip}请输入您的Telegram Bot Token，如果不使用Telegram通知请直接按 Enter 跳过"
