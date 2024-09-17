@@ -185,7 +185,7 @@ fi
 # 发送 Telegram 通知函数
 send_telegram_notification(){
     # 构建基础的通知消息（仅包含IPv4）
-    local message="$Domain IPv4更新 $Old_Public_IPv4  🔜  $Public_IPv4 。"
+    local message="$Domain IPv4更新 $Old_Public_IPv4  🔜  $Public_IPv4 。 "
 
     # 如果 Domainv6 存在，添加 IPv6 更新信息
     if [ -n "$Domainv6" ] && [ "$Domainv6" != "your_domainv6.com" ]; then
