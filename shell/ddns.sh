@@ -227,8 +227,8 @@ go_ahead(){
   ${GREEN}6${NC}：配置 Telegram 通知"
     echo
     read -p "选项: " option
-    until [[ "$option" =~ ^[0-5]$ ]]; do
-        echo -e "${Error}请输入正确的数字 [0-5]"
+    until [[ "$option" =~ ^[0-6]$ ]]; do
+        echo -e "${Error}请输入正确的数字 [0-6]"
         echo
         exit 1
     done
