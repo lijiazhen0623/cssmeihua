@@ -187,8 +187,12 @@ send_telegram_notification(){
     # 构建基础的通知消息（仅包含IPv4）
     local message="$Domain IPv4更新 $Old_Public_IPv4  🔜  $Public_IPv4 。 "
 
-    # 如果 Domainv6 存在，添加 IPv6 更新信息
+    # 如果 Domainv6 存在且不等于 your_domainv6.com
     if [ -n "$Domainv6" ] && [ "$Domainv6" != "your_domainv6.com" ]; then
+        # 检查 Domain 和 Domainv6 是否相同
+        if [ "$Domain" == "$Domainv6" ]; then
+            Domainv6=""  # 替换为空字符
+        fi
         message+="$Domainv6 IPv6更新 $Old_Public_IPv6  🔜  $Public_IPv6 。"
     fi
 
