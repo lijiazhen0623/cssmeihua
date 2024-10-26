@@ -235,7 +235,7 @@ EOF
 }
 
 # 检查 DDNS 状态
-check_ddns_status(){
+check_ddns_status() {
     if grep -qiE "alpine" /etc/os-release; then
         # 检查 cron 任务是否存在
         if crontab -l | grep -q "/bin/bash /etc/DDNS/DDNS"; then
@@ -247,7 +247,7 @@ check_ddns_status(){
         # 在 Debian/Ubuntu 上检查 systemd timer 状态
         if [[ -f "/etc/systemd/system/ddns.timer" ]]; then
             STatus=$(systemctl status ddns.timer | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
-            if [[ $STatus =~ "waiting"|"running" ]]; then
+            if [[ $STatus =~ "waiting" || $STatus =~ "running" ]]; then
                 ddns_status=running
             else
                 ddns_status=dead
@@ -256,7 +256,6 @@ check_ddns_status(){
             ddns_status=not_installed
         fi
     fi
-    echo "DDNS 状态: $ddns_status"
 }
 
 # 后续操作
