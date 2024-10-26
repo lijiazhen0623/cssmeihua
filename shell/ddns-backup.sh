@@ -126,6 +126,7 @@ Root_domain=$(echo "$Domain" | cut -d'.' -f2-)
 # 获取公网IP地址
 regex_pattern='^(eth|ens|eno|esp|enp)[0-9]+'
 
+# 获取网络接口列表
 InterFace=($(ip link show | awk -F': ' '{print $2}' | grep -E "$regex_pattern" | sed "s/@.*//g"))
 
 Public_IPv4=""
@@ -135,40 +136,54 @@ Old_Public_IPv6=""
 ipv4Regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
 ipv6Regex="^([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])$"
 
-for i in "${InterFace[@]}"; do
-    # 尝试通过第一个接口获取 IPv4 地址
-    ipv4=$(curl -s4 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
+# 检查操作系统类型
+if grep -qiE "debian|ubuntu" /etc/os-release; then
+    # Debian/Ubuntu系统的IP获取方法
+    for i in "${InterFace[@]}"; do
+        # 尝试通过第一个接口获取 IPv4 地址
+        ipv4=$(curl -s4 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
 
-    # 如果第一个接口的 IPv4 地址获取失败，尝试备用接口
-    if [[ -z "$ipv4" ]]; then
-        ipv4=$(curl -s4 --max-time 3 --interface "$i" https://api.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
-    fi
+        # 如果第一个接口的 IPv4 地址获取失败，尝试备用接口
+        if [[ -z "$ipv4" ]]; then
+            ipv4=$(curl -s4 --max-time 3 --interface "$i" https://api.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
+        fi
 
-    # 验证获取到的 IPv4 地址是否是有效的 IP 地址
+        # 验证获取到的 IPv4 地址是否是有效的 IP 地址
+        if [[ -n "$ipv4" && "$ipv4" =~ $ipv4Regex ]]; then
+            Public_IPv4="$ipv4"
+            break  # 找到有效地址后退出循环
+        fi
+
+        # 检查是否启用了 IPv6 解析
+        if [[ "$ipv6_set" == "true" ]]; then
+            # 尝试通过第一个接口获取 IPv6 地址
+            ipv6=$(curl -s6 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
+
+            # 如果第一个接口的 IPv6 地址获取失败，尝试备用接口
+            if [[ -z "$ipv6" ]]; then
+                ipv6=$(curl -s6 --max-time 3 --interface "$i" https://api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
+            fi
+
+            # 验证获取到的 IPv6 地址是否是有效的 IP 地址
+            if [[ -n "$ipv6" && "$ipv6" =~ $ipv6Regex ]]; then
+                Public_IPv6="$ipv6"
+            fi
+        fi
+    done
+else
+    # Alpine系统的IP获取方法
+    ipv4=$(curl -s4 ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
     if [[ -n "$ipv4" && "$ipv4" =~ $ipv4Regex ]]; then
         Public_IPv4="$ipv4"
-    else
-        ipv4=""
     fi
 
-    # 检查是否启用了 IPv6 解析
     if [[ "$ipv6_set" == "true" ]]; then
-        # 尝试通过第一个接口获取 IPv6 地址
-        ipv6=$(curl -s6 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
-
-        # 如果第一个接口的 IPv6 地址获取失败，尝试备用接口
-        if [[ -z "$ipv6" ]]; then
-            ipv6=$(curl -s6 --max-time 3 --interface "$i" https://api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
-        fi
-
-        # 验证获取到的 IPv6 地址是否是有效的 IP 地址
+        ipv6=$(curl -s6 api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
         if [[ -n "$ipv6" && "$ipv6" =~ $ipv6Regex ]]; then
             Public_IPv6="$ipv6"
-        else
-            ipv6=""
         fi
     fi
-done
+fi
 
 # 使用Cloudflare API获取根域名的区域ID
 Zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$Root_domain" \
