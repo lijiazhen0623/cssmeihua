@@ -14,7 +14,7 @@ Tip="${YELLOW}[提示]${NC}"
 cop_info(){
 clear
 echo -e "${GREEN}######################################
-#        ${RED}Debian DDNS 一键脚本        ${GREEN}#
+#      ${RED}Debian DDNS 一键脚本 v1.1     ${GREEN}#
 #             作者: ${YELLOW}末晨             ${GREEN}#
 #       ${GREEN}https://blog.mochen.one      ${GREEN}#
 ######################################${NC}"
@@ -185,11 +185,15 @@ fi
 # 发送 Telegram 通知函数
 send_telegram_notification(){
     # 构建基础的通知消息（仅包含IPv4）
-    local message="$Domain 的 IPv4 地址已更新为 $Public_IPv4 。旧 IP 地址为 $Old_Public_IPv4 。"
+    local message="$Domain IPv4更新 $Old_Public_IPv4  🔜  $Public_IPv4 。 "
 
-    # 如果 Domainv6 存在，添加 IPv6 更新信息
+    # 如果 Domainv6 存在且不等于 your_domainv6.com
     if [ -n "$Domainv6" ] && [ "$Domainv6" != "your_domainv6.com" ]; then
-        message+="$Domainv6 的 IPv6 地址已更新为 $Public_IPv6 。旧 IP 地址为 $Old_Public_IPv6 。"
+        # 检查 Domain 和 Domainv6 是否相同
+        if [ "$Domain" == "$Domainv6" ]; then
+            Domainv6=""  # 替换为空字符
+        fi
+        message+="$Domainv6 IPv6更新 $Old_Public_IPv6  🔜  $Public_IPv6 。"
     fi
 
     # 发送通知
@@ -227,8 +231,8 @@ go_ahead(){
   ${GREEN}6${NC}：配置 Telegram 通知"
     echo
     read -p "选项: " option
-    until [[ "$option" =~ ^[0-5]$ ]]; do
-        echo -e "${Error}请输入正确的数字 [0-5]"
+    until [[ "$option" =~ ^[0-6]$ ]]; do
+        echo -e "${Error}请输入正确的数字 [0-6]"
         echo
         exit 1
     done
@@ -319,11 +323,13 @@ set_domain(){
         else
             DOMAIN="$DOmain"
             echo -e "${Info}你的IPv4域名：${RED_ground}${DOMAIN}${NC}"
+            echo
             # 更新 .config 文件中的IPv4域名
             sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
         fi
     else
         echo -e "${Info}未检测到IPv4地址，跳过IPv4域名设置。"
+        echo
     fi
 
     # 检查是否有IPv6
@@ -346,9 +352,11 @@ set_domain(){
 
                 if [ -z "$DOmainv6" ]; then
                     echo -e "${Info}跳过IPv6域名设置。"
+                    echo
                 else
                     DOMAINV6="$DOmainv6"
                     echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
+                    echo
                     # 更新 .config 文件中的IPv6域名
                     sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
                 fi
@@ -358,6 +366,7 @@ set_domain(){
                 # 更新 .config 文件中的 ipv6_set 为 false
                 sed -i 's/^#\?ipv6_set=".*"/ipv6_set="false"/g' /etc/DDNS/.config
                 echo -e "${Info}IPv6 解析未开启，跳过 IPv6 域名设置。"
+                echo
                 break
             else
                 echo -e "${Error}无效输入，请输入 'y' 或 'n'。"
@@ -365,6 +374,7 @@ set_domain(){
         done
     else
         echo -e "${Info}未检测到IPv6地址，跳过IPv6域名设置。"
+        echo
         ipv6_set="false"
         # 更新 .config 文件中的 ipv6_set 为 false
         sed -i 's/^#\?ipv6_set=".*"/ipv6_set="false"/g' /etc/DDNS/.config
@@ -397,6 +407,7 @@ set_telegram_settings(){
         fi
     else
         echo -e "${Info}已跳过设置Telegram Bot Token和Chat ID"
+        echo
         return  # 如果没有输入 Token，则直接返回，跳过设置 Chat ID 的步骤
     fi
 }
