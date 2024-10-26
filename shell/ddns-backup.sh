@@ -184,7 +184,7 @@ else
     # 检查是否启用了 IPv6 解析
     if [[ "$ipv6_set" == "true" ]]; then
         # 尝试获取 IPv6 地址
-        ipv6=$(curl -s6 api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
+        ipv6=$(curl -s6 ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
         if [[ -z "$ipv6" ]]; then
             ipv6=$(curl -s6 https://api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
         fi
