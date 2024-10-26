@@ -150,7 +150,6 @@ if grep -qiE "debian|ubuntu" /etc/os-release; then
         # 验证获取到的 IPv4 地址是否是有效的 IP 地址
         if [[ -n "$ipv4" && "$ipv4" =~ $ipv4Regex ]]; then
             Public_IPv4="$ipv4"
-            break  # 找到有效地址后退出循环
         fi
 
         # 检查是否启用了 IPv6 解析
