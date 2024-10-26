@@ -273,6 +273,7 @@ go_ahead(){
         3)
             if grep -qiE "alpine" /etc/os-release; then
                 stop_ddns
+                rm -rf /etc/DDNS /usr/bin/ddns
             else
                 systemctl stop ddns.service >/dev/null 2>&1
                 systemctl stop ddns.timer >/dev/null 2>&1
