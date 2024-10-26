@@ -484,13 +484,6 @@ run_ddns(){
         else
             echo -e "${Tip}ddns 脚本的 cron 任务已存在，无需再次创建！"
         fi
-
-        # 确保 crond 服务已启动
-        if ! pgrep -x "crond" > /dev/null; then
-            echo -e "${Info}启动 crond 服务..."
-            rc-update add crond default
-            rc-service crond start
-        fi
     else
         # 在 Debian/Ubuntu 上使用 systemd
         service='[Unit]
