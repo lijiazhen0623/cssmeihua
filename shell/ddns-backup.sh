@@ -277,8 +277,8 @@ go_ahead(){
             else
                 systemctl stop ddns.service >/dev/null 2>&1
                 systemctl stop ddns.timer >/dev/null 2>&1
+                rm -rf /etc/systemd/system/ddns.service /etc/systemd/system/ddns.timer /etc/DDNS /usr/bin/ddns
             fi
-            rm -rf /etc/DDNS /usr/bin/ddns
             echo -e "${Info}DDNS 已卸载！"
             echo
         ;;
