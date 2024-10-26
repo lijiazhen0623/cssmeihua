@@ -21,9 +21,9 @@ echo -e "${GREEN}######################################
 echo
 }
 
-# 检查系统是否为 Debian 或 Ubuntu
-if ! grep -qiE "debian|ubuntu" /etc/os-release; then
-    echo -e "${RED}本脚本仅支持 Debian 或 Ubuntu 系统，请在 Debian 或 Ubuntu 系统上运行。${NC}"
+# 检查系统是否为 Debian、Ubuntu 或 Alpine
+if ! grep -qiE "debian|ubuntu|alpine" /etc/os-release; then
+    echo -e "${RED}本脚本仅支持 Debian、Ubuntu 或 Alpine 系统，请在这些系统上运行。${NC}"
     exit 1
 fi
 
@@ -39,11 +39,22 @@ check_root(){
 check_curl() {
     if ! command -v curl &>/dev/null; then
         echo -e "${YELLOW}未检测到 curl，正在安装 curl...${NC}"
-        apt update
-        apt install -y curl
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}安装 curl 失败，请手动安装后重新运行脚本。${NC}"
-            exit 1
+        
+        # 根据不同的系统类型选择安装命令
+        if grep -qiE "debian|ubuntu" /etc/os-release; then
+            apt update
+            apt install -y curl
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}在 Debian/Ubuntu 上安装 curl 失败，请手动安装后重新运行脚本。${NC}"
+                exit 1
+            fi
+        elif grep -qiE "alpine" /etc/os-release; then
+            apk update
+            apk add curl
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}在 Alpine 上安装 curl 失败，请手动安装后重新运行脚本。${NC}"
+                exit 1
+            fi
         fi
     fi
 }
@@ -209,14 +220,27 @@ EOF
 
 # 检查 DDNS 状态
 check_ddns_status(){
-    if [[ -f "/etc/systemd/system/ddns.timer" ]]; then
-        STatus=$(systemctl status ddns.timer | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
-        if [[ $STatus =~ "waiting"|"running" ]]; then
+    if grep -qiE "alpine" /etc/os-release; then
+        # 检查 cron 任务是否存在
+        if crontab -l | grep -q "/bin/bash /etc/DDNS/DDNS"; then
             ddns_status=running
         else
             ddns_status=dead
         fi
+    else
+        # 在 Debian/Ubuntu 上检查 systemd timer 状态
+        if [[ -f "/etc/systemd/system/ddns.timer" ]]; then
+            STatus=$(systemctl status ddns.timer | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
+            if [[ $STatus =~ "waiting"|"running" ]]; then
+                ddns_status=running
+            else
+                ddns_status=dead
+            fi
+        else
+            ddns_status=not_installed
+        fi
     fi
+    echo "DDNS 状态: $ddns_status"
 }
 
 # 后续操作
@@ -248,9 +272,13 @@ go_ahead(){
             stop_ddns
         ;;
         3)
-            systemctl disable ddns.service ddns.timer >/dev/null 2>&1
-            systemctl stop ddns.service ddns.timer >/dev/null 2>&1
-            rm -rf /etc/systemd/system/ddns.service /etc/systemd/system/ddns.timer /etc/DDNS /usr/bin/ddns
+            if grep -qiE "alpine" /etc/os-release; then
+                stop_ddns
+            else
+                systemctl stop ddns.service >/dev/null 2>&1
+                systemctl stop ddns.timer >/dev/null 2>&1
+            fi
+            rm -rf /etc/DDNS /usr/bin/ddns
             echo -e "${Info}DDNS 已卸载！"
             echo
         ;;
@@ -263,12 +291,17 @@ go_ahead(){
         5)
             set_cloudflare_api
             set_domain
-            if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
-                run_ddns
+            if grep -qiE "alpine" /etc/os-release; then
+                restart_ddns
                 sleep 2
             else
-               restart_ddns
-               sleep 2
+                if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
+                    run_ddns
+                    sleep 2
+                else
+                    restart_ddns
+                    sleep 2
+                fi
             fi
             check_ddns_install
         ;;
@@ -414,7 +447,28 @@ set_telegram_settings(){
 
 # 运行DDNS服务
 run_ddns(){
-    service='[Unit]
+    if grep -qiE "alpine" /etc/os-release; then
+        # 在 Alpine Linux 上使用 cron
+        echo -e "${Info}设置 ddns 脚本每分钟运行一次..."
+
+        # 检查 cron 任务是否已存在，防止重复添加
+        if ! grep -q "/bin/bash /etc/DDNS/DDNS" /etc/crontabs/root; then
+            # 设置 cron 任务
+            echo "* * * * * /bin/bash /etc/DDNS/DDNS" >> /etc/crontabs/root
+            echo -e "${Info}ddns 脚本已设置为每分钟运行一次！"
+        else
+            echo -e "${Tip}ddns 脚本的 cron 任务已存在，无需再次创建！"
+        fi
+
+        # 确保 crond 服务已启动
+        if ! pgrep -x "crond" > /dev/null; then
+            echo -e "${Info}启动 crond 服务..."
+            rc-update add crond default
+            rc-service crond start
+        fi
+    else
+        # 在 Debian/Ubuntu 上使用 systemd
+        service='[Unit]
 Description=ddns
 After=network.target
 
@@ -426,7 +480,7 @@ ExecStart=bash DDNS
 [Install]
 WantedBy=multi-user.target'
 
-    timer='[Unit]
+        timer='[Unit]
 Description=ddns timer
 
 [Timer]
@@ -436,30 +490,48 @@ Unit=ddns.service
 [Install]
 WantedBy=multi-user.target'
 
-    if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
-        echo -e "${Info}创建ddns定时任务..."
-        echo "$service" >/etc/systemd/system/ddns.service
-        echo "$timer" >/etc/systemd/system/ddns.timer
-        echo -e "${Info}ddns定时任务已创建，每1分钟执行一次！"
-        systemctl enable --now ddns.service >/dev/null 2>&1
-        systemctl enable --now ddns.timer >/dev/null 2>&1
-    else
-        echo -e "${Tip}服务和定时器单元文件已存在，无需再次创建！"
+        if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
+            echo -e "${Info}创建 ddns 定时任务..."
+            echo "$service" >/etc/systemd/system/ddns.service
+            echo "$timer" >/etc/systemd/system/ddns.timer
+            echo -e "${Info}ddns 定时任务已创建，每1分钟执行一次！"
+            systemctl enable --now ddns.service >/dev/null 2>&1
+            systemctl enable --now ddns.timer >/dev/null 2>&1
+        else
+            echo -e "${Tip}服务和定时器单元文件已存在，无需再次创建！"
+        fi
     fi
 }
 
 # 重启DDNS服务
 restart_ddns(){
-    systemctl restart ddns.service >/dev/null 2>&1
-    systemctl restart ddns.timer >/dev/null 2>&1
-    echo -e "${Info}DDNS 已重启！"
+    if grep -qiE "alpine" /etc/os-release; then
+        echo -e "${Info}重新启动 ddns 脚本..."
+        # 由于使用 cron，不需要重启服务，直接重置 cron 任务
+        crontab -l | grep -v "/bin/bash /etc/DDNS/DDNS" | crontab -
+        echo "* * * * * /bin/bash /etc/DDNS/DDNS" >> /etc/crontabs/root
+        echo -e "${Info}DDNS 已重启！"
+    else
+        echo -e "${Info}重启 DDNS 服务..."
+        systemctl restart ddns.service >/dev/null 2>&1
+        systemctl restart ddns.timer >/dev/null 2>&1
+        echo -e "${Info}DDNS 已重启！"
+    fi
 }
 
 # 停止DDNS服务
 stop_ddns(){
-    systemctl stop ddns.service >/dev/null 2>&1
-    systemctl stop ddns.timer >/dev/null 2>&1
-    echo -e "${Info}DDNS 已停止！"
+    if grep -qiE "alpine" /etc/os-release; then
+        echo -e "${Info}停止 ddns 脚本..."
+        # 从 cron 中移除 ddns 任务
+        crontab -l | grep -v "/bin/bash /etc/DDNS/DDNS" | crontab -
+        echo -e "${Info}DDNS 已停止！"
+    else
+        echo -e "${Info}停止 DDNS 服务..."
+        systemctl stop ddns.service >/dev/null 2>&1
+        systemctl stop ddns.timer >/dev/null 2>&1
+        echo -e "${Info}DDNS 已停止！"
+    fi
 }
 
 # 检查是否安装DDNS
@@ -483,8 +555,8 @@ check_ddns_install(){
             echo -e "${Tip}DDNS：${GREEN}已安装${NC} 但 ${RED}未启动${NC}"
             echo -e "${Tip}请选择 ${GREEN}4${NC} 重新配置 Cloudflare Api 或 ${GREEN}5${NC} 配置 Telegram 通知"
         fi
-    echo
-    go_ahead
+        echo
+        go_ahead
     fi
 }
 
