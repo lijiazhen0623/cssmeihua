@@ -315,7 +315,6 @@ go_ahead(){
         ;;
         5)
             set_cloudflare_api
-            set_domain
             if grep -qiE "alpine" /etc/os-release; then
                 restart_ddns
                 sleep 2
