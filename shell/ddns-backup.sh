@@ -28,12 +28,10 @@ if ! grep -qiE "debian|ubuntu|alpine" /etc/os-release; then
 fi
 
 # 检查是否为root用户
-check_root(){
-    if [[ $(whoami) != "root" ]]; then
-        echo -e "${Error}请以root身份执行该脚本！"
-        exit 1
-    fi
-}
+if [[ $(whoami) != "root" ]]; then
+    echo -e "${Error}请以root身份执行该脚本！"
+    exit 1
+fi
 
 # 检查是否安装 curl，如果没有安装，则安装 curl
 check_curl() {
@@ -560,6 +558,5 @@ check_ddns_install(){
     fi
 }
 
-check_root
 check_curl
 check_ddns_install
