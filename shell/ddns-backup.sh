@@ -14,7 +14,7 @@ Tip="${YELLOW}[提示]${NC}"
 cop_info(){
 clear
 echo -e "${GREEN}######################################
-#      ${RED}Debian DDNS 一键脚本 v1.1     ${GREEN}#
+#      ${RED}   DDNS 一键脚本 v1.1         ${GREEN}#
 #             作者: ${YELLOW}末晨             ${GREEN}#
 #       ${GREEN}https://blog.mochen.one      ${GREEN}#
 ######################################${NC}"
