@@ -14,36 +14,46 @@ Tip="${YELLOW}[提示]${NC}"
 cop_info(){
 clear
 echo -e "${GREEN}######################################
-#      ${RED}Debian DDNS 一键脚本 v1.1     ${GREEN}#
+#      ${RED}   DDNS 一键脚本 v2.1         ${GREEN}#
 #             作者: ${YELLOW}末晨             ${GREEN}#
 #       ${GREEN}https://blog.mochen.one      ${GREEN}#
 ######################################${NC}"
 echo
 }
 
-# 检查系统是否为 Debian 或 Ubuntu
-if ! grep -qiE "debian|ubuntu" /etc/os-release; then
-    echo -e "${RED}本脚本仅支持 Debian 或 Ubuntu 系统，请在 Debian 或 Ubuntu 系统上运行。${NC}"
+# 检查系统是否为 Debian、Ubuntu 或 Alpine
+if ! grep -qiE "debian|ubuntu|alpine" /etc/os-release; then
+    echo -e "${RED}本脚本仅支持 Debian、Ubuntu 或 Alpine 系统，请在这些系统上运行。${NC}"
     exit 1
 fi
 
 # 检查是否为root用户
-check_root(){
-    if [[ $(whoami) != "root" ]]; then
-        echo -e "${Error}请以root身份执行该脚本！"
-        exit 1
-    fi
-}
+if [[ $(whoami) != "root" ]]; then
+    echo -e "${Error}请以root身份执行该脚本！"
+    exit 1
+fi
 
 # 检查是否安装 curl，如果没有安装，则安装 curl
 check_curl() {
     if ! command -v curl &>/dev/null; then
         echo -e "${YELLOW}未检测到 curl，正在安装 curl...${NC}"
-        apt update
-        apt install -y curl
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}安装 curl 失败，请手动安装后重新运行脚本。${NC}"
-            exit 1
+        
+        # 根据不同的系统类型选择安装命令
+        if grep -qiE "debian|ubuntu" /etc/os-release; then
+            apt update
+            apt install -y curl
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}在 Debian/Ubuntu 上安装 curl 失败，请手动安装后重新运行脚本。${NC}"
+                exit 1
+            fi
+        elif grep -qiE "alpine" /etc/os-release; then
+            apk update
+            apk add curl
+            apk add grep
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}在 Alpine 上安装 curl 失败，请手动安装后重新运行脚本。${NC}"
+                exit 1
+            fi
         fi
     fi
 }
@@ -115,6 +125,7 @@ Root_domain=$(echo "$Domain" | cut -d'.' -f2-)
 # 获取公网IP地址
 regex_pattern='^(eth|ens|eno|esp|enp)[0-9]+'
 
+# 获取网络接口列表
 InterFace=($(ip link show | awk -F': ' '{print $2}' | grep -E "$regex_pattern" | sed "s/@.*//g"))
 
 Public_IPv4=""
@@ -124,40 +135,66 @@ Old_Public_IPv6=""
 ipv4Regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
 ipv6Regex="^([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])$"
 
-for i in "${InterFace[@]}"; do
-    # 尝试通过第一个接口获取 IPv4 地址
-    ipv4=$(curl -s4 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
+# 检查操作系统类型
+if grep -qiE "debian|ubuntu" /etc/os-release; then
+    # Debian/Ubuntu系统的IP获取方法
+    for i in "${InterFace[@]}"; do
+        # 尝试通过第一个接口获取 IPv4 地址
+        ipv4=$(curl -s4 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
 
-    # 如果第一个接口的 IPv4 地址获取失败，尝试备用接口
+        # 如果第一个接口的 IPv4 地址获取失败，尝试备用接口
+        if [[ -z "$ipv4" ]]; then
+            ipv4=$(curl -s4 --max-time 3 --interface "$i" https://api.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
+        fi
+
+        # 验证获取到的 IPv4 地址是否是有效的 IP 地址
+        if [[ -n "$ipv4" && "$ipv4" =~ $ipv4Regex ]]; then
+            Public_IPv4="$ipv4"
+        fi
+
+        # 检查是否启用了 IPv6 解析
+        if [[ "$ipv6_set" == "true" ]]; then
+            # 尝试通过第一个接口获取 IPv6 地址
+            ipv6=$(curl -s6 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
+
+            # 如果第一个接口的 IPv6 地址获取失败，尝试备用接口
+            if [[ -z "$ipv6" ]]; then
+                ipv6=$(curl -s6 --max-time 3 --interface "$i" https://api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
+            fi
+
+            # 验证获取到的 IPv6 地址是否是有效的 IP 地址
+            if [[ -n "$ipv6" && "$ipv6" =~ $ipv6Regex ]]; then
+                Public_IPv6="$ipv6"
+            fi
+        fi
+    done
+else
+    # Alpine系统的IP获取方法
+    # 尝试获取 IPv4 地址
+    ipv4=$(curl -s4 ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
     if [[ -z "$ipv4" ]]; then
-        ipv4=$(curl -s4 --max-time 3 --interface "$i" https://api.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
+        ipv4=$(curl -s4 https://api.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
     fi
 
     # 验证获取到的 IPv4 地址是否是有效的 IP 地址
     if [[ -n "$ipv4" && "$ipv4" =~ $ipv4Regex ]]; then
         Public_IPv4="$ipv4"
-    else
-        ipv4=""
     fi
 
     # 检查是否启用了 IPv6 解析
     if [[ "$ipv6_set" == "true" ]]; then
-        # 尝试通过第一个接口获取 IPv6 地址
-        ipv6=$(curl -s6 --max-time 3 --interface "$i" ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
-
-        # 如果第一个接口的 IPv6 地址获取失败，尝试备用接口
+        # 尝试获取 IPv6 地址
+        ipv6=$(curl -s6 ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
         if [[ -z "$ipv6" ]]; then
-            ipv6=$(curl -s6 --max-time 3 --interface "$i" https://api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
+            ipv6=$(curl -s6 https://api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
         fi
 
         # 验证获取到的 IPv6 地址是否是有效的 IP 地址
         if [[ -n "$ipv6" && "$ipv6" =~ $ipv6Regex ]]; then
             Public_IPv6="$ipv6"
-        else
-            ipv6=""
         fi
     fi
-done
+fi
 
 # 使用Cloudflare API获取根域名的区域ID
 Zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$Root_domain" \
@@ -208,13 +245,25 @@ EOF
 }
 
 # 检查 DDNS 状态
-check_ddns_status(){
-    if [[ -f "/etc/systemd/system/ddns.timer" ]]; then
-        STatus=$(systemctl status ddns.timer | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
-        if [[ $STatus =~ "waiting"|"running" ]]; then
+check_ddns_status() {
+    if grep -qiE "alpine" /etc/os-release; then
+        # 检查 cron 任务是否存在
+        if crontab -l | grep -q "/bin/bash /etc/DDNS/DDNS"; then
             ddns_status=running
         else
             ddns_status=dead
+        fi
+    else
+        # 在 Debian/Ubuntu 上检查 systemd timer 状态
+        if [[ -f "/etc/systemd/system/ddns.timer" ]]; then
+            STatus=$(systemctl status ddns.timer | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
+            if [[ $STatus =~ "waiting" || $STatus =~ "running" ]]; then
+                ddns_status=running
+            else
+                ddns_status=dead
+            fi
+        else
+            ddns_status=not_installed
         fi
     fi
 }
@@ -242,15 +291,19 @@ go_ahead(){
         ;;
         1)
             restart_ddns
-            check_ddns_install
         ;;
         2)
             stop_ddns
         ;;
         3)
-            systemctl disable ddns.service ddns.timer >/dev/null 2>&1
-            systemctl stop ddns.service ddns.timer >/dev/null 2>&1
-            rm -rf /etc/systemd/system/ddns.service /etc/systemd/system/ddns.timer /etc/DDNS /usr/bin/ddns
+            if grep -qiE "alpine" /etc/os-release; then
+                stop_ddns
+                rm -rf /etc/DDNS /usr/bin/ddns
+            else
+                systemctl stop ddns.service >/dev/null 2>&1
+                systemctl stop ddns.timer >/dev/null 2>&1
+                rm -rf /etc/systemd/system/ddns.service /etc/systemd/system/ddns.timer /etc/DDNS /usr/bin/ddns
+            fi
             echo -e "${Info}DDNS 已卸载！"
             echo
         ;;
@@ -263,12 +316,17 @@ go_ahead(){
         5)
             set_cloudflare_api
             set_domain
-            if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
-                run_ddns
+            if grep -qiE "alpine" /etc/os-release; then
+                restart_ddns
                 sleep 2
             else
-               restart_ddns
-               sleep 2
+                if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
+                    run_ddns
+                    sleep 2
+                else
+                    restart_ddns
+                    sleep 2
+                fi
             fi
             check_ddns_install
         ;;
@@ -414,7 +472,21 @@ set_telegram_settings(){
 
 # 运行DDNS服务
 run_ddns(){
-    service='[Unit]
+    if grep -qiE "alpine" /etc/os-release; then
+        # 在 Alpine Linux 上使用 cron
+        echo -e "${Info}设置 ddns 脚本每分钟运行一次..."
+
+        # 检查 cron 任务是否已存在，防止重复添加
+        if ! grep -q "/bin/bash /etc/DDNS/DDNS" /etc/crontabs/root; then
+            # 设置 cron 任务
+            echo "* * * * * /bin/bash /etc/DDNS/DDNS" >> /etc/crontabs/root
+            echo -e "${Info}ddns 脚本已设置为每分钟运行一次！"
+        else
+            echo -e "${Tip}ddns 脚本的 cron 任务已存在，无需再次创建！"
+        fi
+    else
+        # 在 Debian/Ubuntu 上使用 systemd
+        service='[Unit]
 Description=ddns
 After=network.target
 
@@ -426,7 +498,7 @@ ExecStart=bash DDNS
 [Install]
 WantedBy=multi-user.target'
 
-    timer='[Unit]
+        timer='[Unit]
 Description=ddns timer
 
 [Timer]
@@ -436,30 +508,48 @@ Unit=ddns.service
 [Install]
 WantedBy=multi-user.target'
 
-    if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
-        echo -e "${Info}创建ddns定时任务..."
-        echo "$service" >/etc/systemd/system/ddns.service
-        echo "$timer" >/etc/systemd/system/ddns.timer
-        echo -e "${Info}ddns定时任务已创建，每1分钟执行一次！"
-        systemctl enable --now ddns.service >/dev/null 2>&1
-        systemctl enable --now ddns.timer >/dev/null 2>&1
-    else
-        echo -e "${Tip}服务和定时器单元文件已存在，无需再次创建！"
+        if [ ! -f "/etc/systemd/system/ddns.service" ] || [ ! -f "/etc/systemd/system/ddns.timer" ]; then
+            echo -e "${Info}创建 ddns 定时任务..."
+            echo "$service" >/etc/systemd/system/ddns.service
+            echo "$timer" >/etc/systemd/system/ddns.timer
+            echo -e "${Info}ddns 定时任务已创建，每1分钟执行一次！"
+            systemctl enable --now ddns.service >/dev/null 2>&1
+            systemctl enable --now ddns.timer >/dev/null 2>&1
+        else
+            echo -e "${Tip}服务和定时器单元文件已存在，无需再次创建！"
+        fi
     fi
 }
 
 # 重启DDNS服务
 restart_ddns(){
-    systemctl restart ddns.service >/dev/null 2>&1
-    systemctl restart ddns.timer >/dev/null 2>&1
-    echo -e "${Info}DDNS 已重启！"
+    if grep -qiE "alpine" /etc/os-release; then
+        echo -e "${Info}重新启动 ddns 脚本..."
+        # 由于使用 cron，不需要重启服务，直接重置 cron 任务
+        crontab -l | grep -v "/bin/bash /etc/DDNS/DDNS" | crontab -
+        echo "* * * * * /bin/bash /etc/DDNS/DDNS" >> /etc/crontabs/root
+        echo -e "${Info}DDNS 已重启！"
+    else
+        echo -e "${Info}重启 DDNS 服务..."
+        systemctl restart ddns.service >/dev/null 2>&1
+        systemctl restart ddns.timer >/dev/null 2>&1
+        echo -e "${Info}DDNS 已重启！"
+    fi
 }
 
 # 停止DDNS服务
 stop_ddns(){
-    systemctl stop ddns.service >/dev/null 2>&1
-    systemctl stop ddns.timer >/dev/null 2>&1
-    echo -e "${Info}DDNS 已停止！"
+    if grep -qiE "alpine" /etc/os-release; then
+        echo -e "${Info}停止 ddns 脚本..."
+        # 从 cron 中移除 ddns 任务
+        crontab -l | grep -v "/bin/bash /etc/DDNS/DDNS" | crontab -
+        echo -e "${Info}DDNS 已停止！"
+    else
+        echo -e "${Info}停止 DDNS 服务..."
+        systemctl stop ddns.service >/dev/null 2>&1
+        systemctl stop ddns.timer >/dev/null 2>&1
+        echo -e "${Info}DDNS 已停止！"
+    fi
 }
 
 # 检查是否安装DDNS
@@ -483,11 +573,10 @@ check_ddns_install(){
             echo -e "${Tip}DDNS：${GREEN}已安装${NC} 但 ${RED}未启动${NC}"
             echo -e "${Tip}请选择 ${GREEN}4${NC} 重新配置 Cloudflare Api 或 ${GREEN}5${NC} 配置 Telegram 通知"
         fi
-    echo
-    go_ahead
+        echo
+        go_ahead
     fi
 }
 
-check_root
 check_curl
 check_ddns_install
