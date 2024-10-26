@@ -51,6 +51,7 @@ check_curl() {
         elif grep -qiE "alpine" /etc/os-release; then
             apk update
             apk add curl
+            apk add grep
             if [ $? -ne 0 ]; then
                 echo -e "${RED}在 Alpine 上安装 curl 失败，请手动安装后重新运行脚本。${NC}"
                 exit 1
