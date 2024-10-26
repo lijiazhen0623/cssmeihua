@@ -14,7 +14,7 @@ Tip="${YELLOW}[提示]${NC}"
 cop_info(){
 clear
 echo -e "${GREEN}######################################
-#      ${RED}   DDNS 一键脚本 v1.1         ${GREEN}#
+#      ${RED}   DDNS 一键脚本 v2.0         ${GREEN}#
 #             作者: ${YELLOW}末晨             ${GREEN}#
 #       ${GREEN}https://blog.mochen.one      ${GREEN}#
 ######################################${NC}"
@@ -37,9 +37,10 @@ check_root(){
 
 # 检查是否安装 curl，如果没有安装，则安装 curl
 check_curl() {
+    # 检查 curl
     if ! command -v curl &>/dev/null; then
         echo -e "${YELLOW}未检测到 curl，正在安装 curl...${NC}"
-        
+
         # 根据不同的系统类型选择安装命令
         if grep -qiE "debian|ubuntu" /etc/os-release; then
             apt update
@@ -54,6 +55,16 @@ check_curl() {
             if [ $? -ne 0 ]; then
                 echo -e "${RED}在 Alpine 上安装 curl 失败，请手动安装后重新运行脚本。${NC}"
                 exit 1
+            fi
+            
+            # 检查是否安装 bash，如果没有安装，则安装 bash
+            if ! command -v bash &>/dev/null; then
+                echo -e "${YELLOW}未检测到 bash，正在安装 bash...${NC}"
+                apk add bash
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}在 Alpine 上安装 bash 失败，请手动安装后重新运行脚本。${NC}"
+                    exit 1
+                fi
             fi
         fi
     fi
