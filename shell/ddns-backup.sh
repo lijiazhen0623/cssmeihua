@@ -277,7 +277,6 @@ go_ahead(){
         ;;
         1)
             restart_ddns
-            check_ddns_install
         ;;
         2)
             stop_ddns
