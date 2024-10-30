@@ -14,7 +14,7 @@ Tip="${YELLOW}[提示]${NC}"
 cop_info(){
 clear
 echo -e "${GREEN}######################################
-#      ${RED}   DDNS 一键脚本 v2.1         ${GREEN}#
+#      ${RED}   DDNS 一键脚本 v2.3         ${GREEN}#
 #             作者: ${YELLOW}末晨             ${GREEN}#
 #       ${GREEN}https://blog.mochen.one      ${GREEN}#
 ######################################${NC}"
@@ -89,20 +89,61 @@ source /etc/DDNS/.config
 Old_Public_IPv4="$Old_Public_IPv4"
 Old_Public_IPv6="$Old_Public_IPv6"
 
-# 更新IPv4 DNS记录
-curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv4" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     --data "{\"type\":\"A\",\"name\":\"$Domain\",\"content\":\"$Public_IPv4\"}" >/dev/null 2>&1
+for Domain in "${Domains[@]}"; do
+    # 获取根域名（假设是二级域名，截取主域名部分）
+    Root_domain=$(echo "$Domain" | awk -F '.' '{print $(NF-1)"."$NF}')
 
-# 更新IPv6 DNS记录
-if [ "$ipv6_set" = true ] && [ -n "$Domainv6" ] && [ "$Domainv6" != "your_domainv6.com" ]; then
-    curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv6" \
+    # 使用Cloudflare API获取根域名的区域ID
+    Zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$Root_domain" \
          -H "X-Auth-Email: $Email" \
          -H "X-Auth-Key: $Api_key" \
          -H "Content-Type: application/json" \
-         --data "{\"type\":\"AAAA\",\"name\":\"$Domainv6\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
+         | grep -Po '(?<="id":")[^"]*' | head -1)
+
+    # 获取IPv4 DNS记录ID
+    DNS_IDv4=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=A&name=$Domain" \
+         -H "X-Auth-Email: $Email" \
+         -H "X-Auth-Key: $Api_key" \
+         -H "Content-Type: application/json" \
+         | grep -Po '(?<="id":")[^"]*' | head -1)
+
+    # 更新IPv4 DNS记录
+    curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records/$DNS_IDv4" \
+         -H "X-Auth-Email: $Email" \
+         -H "X-Auth-Key: $Api_key" \
+         -H "Content-Type: application/json" \
+         --data "{\"type\":\"A\",\"name\":\"$Domain\",\"content\":\"$Public_IPv4\"}" >/dev/null 2>&1
+done
+
+# -----------------------------
+# 处理 IPv6 域名的 DNS 更新
+# -----------------------------
+if [ "$ipv6_set" = "true" ]; then
+    for Domainv6 in "${Domainsv6[@]}"; do
+        # 获取根域名（假设是二级域名，截取主域名部分）
+        Root_domainv6=$(echo "$Domainv6" | awk -F '.' '{print $(NF-1)"."$NF}')
+
+        # 使用Cloudflare API获取根域名的区域ID
+        Zone_idv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$Root_domainv6" \
+             -H "X-Auth-Email: $Email" \
+             -H "X-Auth-Key: $Api_key" \
+             -H "Content-Type: application/json" \
+             | grep -Po '(?<="id":")[^"]*' | head -1)
+
+        # 获取IPv6 DNS记录ID
+        DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_idv6/dns_records?type=AAAA&name=$Domainv6" \
+             -H "X-Auth-Email: $Email" \
+             -H "X-Auth-Key: $Api_key" \
+             -H "Content-Type: application/json" \
+             | grep -Po '(?<="id":")[^"]*' | head -1)
+
+        # 更新IPv6 DNS记录
+        curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Zone_idv6/dns_records/$DNS_IDv6" \
+             -H "X-Auth-Email: $Email" \
+             -H "X-Auth-Key: $Api_key" \
+             -H "Content-Type: application/json" \
+             --data "{\"type\":\"AAAA\",\"name\":\"$Domainv6\",\"content\":\"$Public_IPv6\"}" >/dev/null 2>&1
+    done
 fi
 
 # 发送Telegram通知
@@ -124,18 +165,16 @@ if [[ -n "$Public_IPv6" && "$Public_IPv6" != "$Old_Public_IPv6" ]]; then
 fi
 EOF
     cat <<'EOF' > /etc/DDNS/.config
-Domain="your_domain.com"		# 你要解析的域名
-ipv6_set="set"                 #开启ipv6
-Domainv6="your_domainv6.com" 
-Email="your_email@gmail.com"     # 你在Cloudflare注册的邮箱
-Api_key="your_api_key"  # 你的Cloudflare API密钥
+# 多域名支持
+Domains=("your_domain1.com" "your_domain2.com")     # 你要解析的IPv4域名数组
+ipv6_set="setting"                                    # 开启 IPv6 解析
+Domainsv6=("your_domainv6_1.com" "your_domainv6_2.com")  # 你要解析的IPv6域名数组
+Email="your_email@gmail.com"                       # 你在 Cloudflare 注册的邮箱
+Api_key="your_api_key"                             # 你的 Cloudflare API 密钥
 
 # Telegram Bot Token 和 Chat ID
 Telegram_Bot_Token=""
 Telegram_Chat_ID=""
-
-# 获取根域名
-Root_domain=$(echo "$Domain" | cut -d'.' -f2-)
 
 # 获取公网IP地址
 regex_pattern='^(eth|ens|eno|esp|enp)[0-9]+'
@@ -211,41 +250,34 @@ else
     fi
 fi
 
-# 使用Cloudflare API获取根域名的区域ID
-Zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$Root_domain" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     | grep -Po '(?<="id":")[^"]*' | head -1)
-
-# 获取IPv4 DNS记录ID
-DNS_IDv4=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=A&name=$Domain" \
-     -H "X-Auth-Email: $Email" \
-     -H "X-Auth-Key: $Api_key" \
-     -H "Content-Type: application/json" \
-     | grep -Po '(?<="id":")[^"]*' | head -1)
-
-# 获取IPv6 DNS记录ID
-if [ "$ipv6_set" = true ] && [ -n "$Domainv6" ] && [ "$Domainv6" != "your_domainv6.com" ]; then
-    DNS_IDv6=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$Zone_id/dns_records?type=AAAA&name=$Domainv6" \
-         -H "X-Auth-Email: $Email" \
-         -H "X-Auth-Key: $Api_key" \
-         -H "Content-Type: application/json" \
-         | grep -Po '(?<="id":")[^"]*' | head -1)
-fi
-
 # 发送 Telegram 通知函数
-send_telegram_notification(){
-    # 构建基础的通知消息（仅包含IPv4）
-    local message="$Domain IPv4更新 $Old_Public_IPv4  🔜  $Public_IPv4 。 "
+send_telegram_notification() {
+    local message=""
 
-    # 如果 Domainv6 存在且不等于 your_domainv6.com
-    if [ -n "$Domainv6" ] && [ "$Domainv6" != "your_domainv6.com" ]; then
-        # 检查 Domain 和 Domainv6 是否相同
-        if [ "$Domain" == "$Domainv6" ]; then
-            Domainv6=""  # 替换为空字符
+    # 检查 Domains 和 Domainsv6 是否相同
+    if [ "${Domains[*]}" == "${Domainsv6[*]}" ]; then
+        Domainsv6=()  # 替换为空数组
+    fi
+
+    # 遍历 Domains 数组，构建 IPv4 更新信息
+    for i in "${!Domains[@]}"; do
+        local domain="${Domains[i]}"
+        message+="$domain "
+    done
+
+    # 添加 IPv4 更新信息
+    message+="IPv4更新 $Old_Public_IPv4 🔜 $Public_IPv4 。"
+
+    # 如果 ipv6_set 为 true，则遍历 Domainsv6 数组，构建 IPv6 更新信息
+    if [ "$ipv6_set" == "true" ]; then
+        if [ ${#Domainsv6[@]} -gt 0 ]; then  # 只有在 Domainsv6 不为空时才执行
+            for i in "${!Domainsv6[@]}"; do
+                local domainv6="${Domainsv6[i]}"
+                message+="$domainv6 "
+            done
+            # 添加 IPv6 更新信息
+            message+="IPv6更新 $Old_Public_IPv6 🔜 $Public_IPv6 。"
         fi
-        message+="$Domainv6 IPv6更新 $Old_Public_IPv6  🔜  $Public_IPv6 。"
     fi
 
     # 发送通知
@@ -293,11 +325,12 @@ go_ahead(){
   ${GREEN}3${NC}：${RED}卸载 DDNS${NC}
   ${GREEN}4${NC}：修改要解析的域名
   ${GREEN}5${NC}：修改 Cloudflare Api
-  ${GREEN}6${NC}：配置 Telegram 通知"
+  ${GREEN}6${NC}：配置 Telegram 通知
+  ${GREEN}7${NC}：更改 DDNS 运行时间"  # 添加新选项
     echo
     read -p "选项: " option
-    until [[ "$option" =~ ^[0-6]$ ]]; do
-        echo -e "${Error}请输入正确的数字 [0-6]"
+    until [[ "$option" =~ ^[0-7]$ ]]; do  # 更新有效选项范围
+        echo -e "${Error}请输入正确的数字 [0-7]"
         echo
         exit 1
     done
@@ -349,6 +382,11 @@ go_ahead(){
             set_telegram_settings
             check_ddns_install
         ;;
+        7)
+            set_ddns_run_interval  # 调用新函数以更改 DDNS 运行时间
+            sleep 2
+            check_ddns_install
+        ;;
     esac
 }
 
@@ -389,16 +427,16 @@ set_domain(){
     ipv4_check=$(curl -s ip.sb -4)
     if [ -n "$ipv4_check" ]; then
         echo -e "${Info}检测到IPv4地址: ${ipv4_check}"
-        echo -e "${Tip}请输入您解析的IPv4域名 (或按回车跳过)"
-        read -rp "IPv4域名: " DOmain
-        if [ -z "$DOmain" ]; then
+        echo -e "${Tip}请输入您要解析的多个IPv4域名（使用逗号分隔） (或按回车跳过)"
+        read -rp "IPv4域名: " Domain_input
+        if [ -z "$Domain_input" ]; then
             echo -e "${Info}跳过IPv4域名设置。"
         else
-            DOMAIN="$DOmain"
-            echo -e "${Info}你的IPv4域名：${RED_ground}${DOMAIN}${NC}"
+            IFS=',' read -ra Domains <<< "$Domain_input"
+            echo -e "${Info}你输入的IPv4域名为: ${RED_ground}${Domains[*]}${NC}"
             echo
-            # 更新 .config 文件中的IPv4域名
-            sed -i 's/^#\?Domain=".*"/Domain="'"${DOMAIN}"'"/g' /etc/DDNS/.config
+            # 更新 .config 文件中的 IPv4 域名数组，保持原位置修改
+            sed -i '/^Domains=/c\Domains=('"${Domains[*]}"')' /etc/DDNS/.config
         fi
     else
         echo -e "${Info}未检测到IPv4地址，跳过IPv4域名设置。"
@@ -420,18 +458,18 @@ set_domain(){
                 # 更新 .config 文件中的 ipv6_set 为 true
                 sed -i 's/^#\?ipv6_set=".*"/ipv6_set="true"/g' /etc/DDNS/.config
 
-                echo -e "${Tip}请输入您解析的IPv6域名 (或按回车跳过)"
-                read -rp "IPv6域名: " DOmainv6
+                echo -e "${Tip}请输入您要解析的多个IPv6域名（使用逗号分隔） (或按回车跳过)"
+                read -rp "IPv6域名: " Domainv6_input
 
-                if [ -z "$DOmainv6" ]; then
+                if [ -z "$Domainv6_input" ]; then
                     echo -e "${Info}跳过IPv6域名设置。"
                     echo
                 else
-                    DOMAINV6="$DOmainv6"
-                    echo -e "${Info}你的IPv6域名：${RED_ground}${DOMAINV6}${NC}"
+                    IFS=',' read -ra Domainsv6 <<< "$Domainv6_input"
+                    echo -e "${Info}你输入的IPv6域名为: ${RED_ground}${Domainsv6[*]}${NC}"
                     echo
-                    # 更新 .config 文件中的IPv6域名
-                    sed -i 's/^#\?Domainv6=".*"/Domainv6="'"${DOMAINV6}"'"/g' /etc/DDNS/.config
+                    # 更新 .config 文件中的 IPv6 域名数组，保持原位置修改
+                    sed -i '/^Domainsv6=/c\Domainsv6=('"${Domainsv6[*]}"')' /etc/DDNS/.config
                 fi
                 break
             elif [[ "$enable_ipv6" =~ ^[Nn]$ ]]; then
@@ -533,6 +571,51 @@ WantedBy=multi-user.target'
         else
             echo -e "${Tip}服务和定时器单元文件已存在，无需再次创建！"
         fi
+    fi
+}
+
+# 更改 DDNS 服务的运行时间（单位：分钟）
+set_ddns_run_interval() {
+    read -rp "请输入新的 DDNS 运行间隔（分钟）： " interval
+
+    # 输入验证
+    if ! [[ "$interval" =~ ^[0-9]+$ ]]; then
+        echo -e "${Error}无效输入！请输入一个正整数。"
+        return 1
+    fi
+
+    # 计算 cron 表达式
+    local cron_time="*/$interval * * * * /bin/bash /etc/DDNS/DDNS >/dev/null 2>&1"
+
+    if grep -qiE "alpine" /etc/os-release; then
+        # 在 Alpine Linux 上更新 cron 任务
+        echo -e "${Info}正在更新 DDNS 脚本的 cron 任务... "
+
+        # 检查 cron 任务是否已存在，防止重复添加
+        if crontab -l | grep -q "/etc/DDNS/DDNS"; then
+            # 删除旧的 cron 任务
+            (crontab -l | grep -v "/etc/DDNS/DDNS") | crontab -
+        fi
+        # 添加新的 cron 任务
+        (crontab -l; echo "$cron_time") | crontab -
+        echo -e "${Info}DDNS 脚本已设置为每 ${interval} 分钟运行一次！"
+    else
+        # 在 Debian/Ubuntu 上更新 systemd 定时器
+        echo -e "${Info}正在更新 DDNS 定时器... "
+
+        # 停止并禁用旧的定时器
+        systemctl stop ddns.timer
+        systemctl disable ddns.timer
+
+        # 修改定时器文件，将单位设置为分钟
+        sed -i "s/OnUnitActiveSec=.*s/OnUnitActiveSec=${interval}m/" /etc/systemd/system/ddns.timer
+
+        # 重新加载 systemd 管理器配置
+        systemctl daemon-reload
+
+        # 启动并启用新的定时器
+        systemctl enable --now ddns.timer
+        echo -e "${Info}DDNS 定时器已设置为每 ${interval} 分钟运行一次！"
     fi
 }
 
