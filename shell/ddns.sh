@@ -423,7 +423,7 @@ set_domain() {
     ipv4_check=$(curl -s ip.sb -4)
     if [ -n "$ipv4_check" ]; then
         echo -e "${Info}检测到IPv4地址: ${ipv4_check}"
-        echo -e "${Tip}请输入您要解析的多个IPv4域名（使用逗号分隔） (或按回车跳过)"
+        echo -e "${Tip}请输入您要解析的IPv4域名（可解析多个域名，使用逗号分隔） (或按回车跳过)"
         read -rp "IPv4域名: " Domain_input
         if [ -z "$Domain_input" ]; then
             echo -e "${Info}跳过IPv4域名设置。"
@@ -456,7 +456,7 @@ set_domain() {
                 # 更新 .config 文件中的 ipv6_set 为 true
                 sed -i 's/^#\?ipv6_set=".*"/ipv6_set="true"/g' /etc/DDNS/.config
 
-                echo -e "${Tip}请输入您要解析的多个IPv6域名（使用逗号分隔） (或按回车跳过)"
+                echo -e "${Tip}请输入您要解析的IPv6域名（可解析多个域名，使用逗号分隔） (或按回车跳过)"
                 read -rp "IPv6域名: " Domainv6_input
 
                 if [ -z "$Domainv6_input" ]; then
@@ -530,7 +530,7 @@ run_ddns() {
         echo -e "${Info}设置 ddns 脚本每两分钟运行一次..."
 
         # 检查 cron 任务是否已存在，防止重复添加
-        if ! crontab -l | grep -q "*/2 * * * * /bin/bash /etc/DDNS/DDNS >/dev/null 2>&1"; then
+        if ! crontab -l | grep -q "/bin/bash /etc/DDNS/DDNS >/dev/null 2>&1"; then
             # 设置 cron 任务
             (crontab -l; echo "*/2 * * * * /bin/bash /etc/DDNS/DDNS >/dev/null 2>&1") | crontab -
             echo -e "${Info}ddns 脚本已设置为每两分钟运行一次！"
@@ -584,12 +584,12 @@ set_ddns_run_interval() {
         return 1
     fi
 
-    # 计算 cron 表达式
-    local cron_time="*/$interval * * * * /bin/bash /etc/DDNS/DDNS >/dev/null 2>&1"
-
     if grep -qiE "alpine" /etc/os-release; then
         # 在 Alpine Linux 上更新 cron 任务
         echo -e "${Info}正在更新 DDNS 脚本的 cron 任务... "
+
+        # 计算 cron 表达式
+        local cron_time="*/$interval * * * * /bin/bash /etc/DDNS/DDNS >/dev/null 2>&1"
 
         # 检查 cron 任务是否已存在，防止重复添加
         if crontab -l | grep -q "/etc/DDNS/DDNS"; then
@@ -619,16 +619,38 @@ set_ddns_run_interval() {
     fi
 }
 
-# 重启DDNS服务
-restart_ddns(){
+restart_ddns() {
     if grep -qiE "alpine" /etc/os-release; then
         echo -e "${Info}重新启动 ddns 脚本..."
-        # 由于使用 cron，不需要重启服务，直接重置 cron 任务
-        crontab -l | grep -v "/bin/bash /etc/DDNS/DDNS >/dev/null 2>&1" | crontab -
-        echo "*/2 * * * * /bin/bash /etc/DDNS/DDNS >/dev/null 2>&1" >> /etc/crontabs/root
-        echo -e "${Info}DDNS 已重启！"
+
+        # 获取当前的 cron 任务
+        current_cron=$(crontab -l | grep "/bin/bash /etc/DDNS/DDNS" || true)
+
+        # 如果当前的 cron 任务存在，则替换
+        if [ -n "$current_cron" ]; then
+            # 删除旧的 cron 任务
+            crontab -l | grep -v "/bin/bash /etc/DDNS/DDNS" | crontab -
+
+            # 添加新的 cron 任务
+            new_cron="${current_cron} >/dev/null 2>&1"
+            (crontab -l; echo "$new_cron") | crontab -
+
+            echo -e "${Info}DDNS 已重启！"
+        else
+            echo -e "${Error}未找到现有的 cron 任务，无法重启 DDNS。"
+            read -rp "是否要添加一个新的 DDNS 任务（每 2 分钟）？[y/n] " add_cron
+            if [[ "$add_cron" == "y" || "$add_cron" == "Y" ]]; then
+                # 添加新的 cron 任务
+                new_cron="*/2 * * * * /bin/bash /etc/DDNS/DDNS >/dev/null 2>&1"
+                (crontab -l; echo "$new_cron") | crontab -
+                echo -e "${Info}已添加新的 DDNS 任务，每 2 分钟运行一次！"
+            else
+                echo -e "${Info}未添加新的 DDNS 任务。"
+                return 1  # 返回失败状态
+            fi
+        fi
     else
-        echo -e "${Info}重启 DDNS 服务..."
+        echo -e "${Info}重启 DDNS 服务... "
         systemctl restart ddns.service >/dev/null 2>&1
         systemctl restart ddns.timer >/dev/null 2>&1
         echo -e "${Info}DDNS 已重启！"
