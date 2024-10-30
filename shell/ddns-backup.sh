@@ -33,11 +33,11 @@ if [[ $(whoami) != "root" ]]; then
     exit 1
 fi
 
-# 检查是否安装 curl，如果没有安装，则安装 curl
+# 检查是否安装 curl 和 GNU grep（仅 Alpine），如果没有安装，则安装它们
 check_curl() {
     if ! command -v curl &>/dev/null; then
         echo -e "${YELLOW}未检测到 curl，正在安装 curl...${NC}"
-        
+
         # 根据不同的系统类型选择安装命令
         if grep -qiE "debian|ubuntu" /etc/os-release; then
             apt update
@@ -49,11 +49,26 @@ check_curl() {
         elif grep -qiE "alpine" /etc/os-release; then
             apk update
             apk add curl
-            apk add grep
             if [ $? -ne 0 ]; then
                 echo -e "${RED}在 Alpine 上安装 curl 失败，请手动安装后重新运行脚本。${NC}"
                 exit 1
             fi
+        fi
+    fi
+
+    # 仅在 Alpine 系统上检查是否为 GNU 版本的 grep，如果不是，则安装 GNU grep
+    if grep -qiE "alpine" /etc/os-release; then
+        if ! grep --version 2>/dev/null | grep -q "GNU"; then
+            echo -e "${YELLOW}当前 grep 不是 GNU 版本，正在安装 GNU grep...${NC}"
+            
+            apk update
+            apk add grep
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}在 Alpine 上安装 GNU grep 失败，请手动安装后重新运行脚本。${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${GREEN}GNU grep 已经安装。${NC}"
         fi
     fi
 }
@@ -61,7 +76,7 @@ check_curl() {
 # 开始安装DDNS
 install_ddns(){
     if [ ! -f "/usr/bin/ddns" ]; then
-        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns-backup.sh && chmod +x /usr/bin/ddns
+        curl -o /usr/bin/ddns https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/ddns.sh && chmod +x /usr/bin/ddns
     fi
     mkdir -p /etc/DDNS
     cat <<'EOF' > /etc/DDNS/DDNS
@@ -171,9 +186,9 @@ if grep -qiE "debian|ubuntu" /etc/os-release; then
 else
     # Alpine系统的IP获取方法
     # 尝试获取 IPv4 地址
-    ipv4=$(curl -s4 ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
+    ipv4=$(curl -s4 --max-time 3 ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
     if [[ -z "$ipv4" ]]; then
-        ipv4=$(curl -s4 https://api.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
+        ipv4=$(curl -s4 --max-time 3 https://api.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
     fi
 
     # 验证获取到的 IPv4 地址是否是有效的 IP 地址
@@ -184,9 +199,9 @@ else
     # 检查是否启用了 IPv6 解析
     if [[ "$ipv6_set" == "true" ]]; then
         # 尝试获取 IPv6 地址
-        ipv6=$(curl -s6 ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
+        ipv6=$(curl -s6 --max-time 3 ip.sb -k | grep -E -v '^(2a09|104\.28)' || true)
         if [[ -z "$ipv6" ]]; then
-            ipv6=$(curl -s6 https://api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
+            ipv6=$(curl -s6 --max-time 3 https://api6.ipify.org -k | grep -E -v '^(2a09|104\.28)' || true)
         fi
 
         # 验证获取到的 IPv6 地址是否是有效的 IP 地址
@@ -240,6 +255,7 @@ send_telegram_notification(){
 }
 
 EOF
+    chmod +x /etc/DDNS/DDNS && chmod +x /etc/DDNS/.config
     echo -e "${Info}DDNS 安装完成！"
     echo
 }
@@ -315,7 +331,6 @@ go_ahead(){
         ;;
         5)
             set_cloudflare_api
-            set_domain
             if grep -qiE "alpine" /etc/os-release; then
                 restart_ddns
                 sleep 2
@@ -471,16 +486,16 @@ set_telegram_settings(){
 }
 
 # 运行DDNS服务
-run_ddns(){
+run_ddns() {
     if grep -qiE "alpine" /etc/os-release; then
         # 在 Alpine Linux 上使用 cron
-        echo -e "${Info}设置 ddns 脚本每分钟运行一次..."
+        echo -e "${Info}设置 ddns 脚本每两分钟运行一次..."
 
         # 检查 cron 任务是否已存在，防止重复添加
-        if ! grep -q "/bin/bash /etc/DDNS/DDNS" /etc/crontabs/root; then
+        if ! crontab -l | grep -q "*/2 * * * * /bin/bash /etc/DDNS/DDNS >/dev/null 2>&1"; then
             # 设置 cron 任务
-            echo "* * * * * /bin/bash /etc/DDNS/DDNS" >> /etc/crontabs/root
-            echo -e "${Info}ddns 脚本已设置为每分钟运行一次！"
+            (crontab -l; echo "*/2 * * * * /bin/bash /etc/DDNS/DDNS >/dev/null 2>&1") | crontab -
+            echo -e "${Info}ddns 脚本已设置为每两分钟运行一次！"
         else
             echo -e "${Tip}ddns 脚本的 cron 任务已存在，无需再次创建！"
         fi
@@ -526,8 +541,8 @@ restart_ddns(){
     if grep -qiE "alpine" /etc/os-release; then
         echo -e "${Info}重新启动 ddns 脚本..."
         # 由于使用 cron，不需要重启服务，直接重置 cron 任务
-        crontab -l | grep -v "/bin/bash /etc/DDNS/DDNS" | crontab -
-        echo "* * * * * /bin/bash /etc/DDNS/DDNS" >> /etc/crontabs/root
+        crontab -l | grep -v "/bin/bash /etc/DDNS/DDNS >/dev/null 2>&1" | crontab -
+        echo "*/2 * * * * /bin/bash /etc/DDNS/DDNS >/dev/null 2>&1" >> /etc/crontabs/root
         echo -e "${Info}DDNS 已重启！"
     else
         echo -e "${Info}重启 DDNS 服务..."
@@ -542,7 +557,7 @@ stop_ddns(){
     if grep -qiE "alpine" /etc/os-release; then
         echo -e "${Info}停止 ddns 脚本..."
         # 从 cron 中移除 ddns 任务
-        crontab -l | grep -v "/bin/bash /etc/DDNS/DDNS" | crontab -
+        crontab -l | grep -v "/bin/bash /etc/DDNS/DDNS >/dev/null 2>&1" | crontab -
         echo -e "${Info}DDNS 已停止！"
     else
         echo -e "${Info}停止 DDNS 服务..."
