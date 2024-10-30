@@ -422,7 +422,7 @@ set_cloudflare_api(){
 }
 
 # 设置解析的域名
-set_domain(){
+set_domain() {
     # 检查是否有IPv4
     ipv4_check=$(curl -s ip.sb -4)
     if [ -n "$ipv4_check" ]; then
@@ -432,6 +432,8 @@ set_domain(){
         if [ -z "$Domain_input" ]; then
             echo -e "${Info}跳过IPv4域名设置。"
         else
+            # 替换中文逗号为英文逗号
+            Domain_input="${Domain_input//，/,}"
             IFS=',' read -ra Domains <<< "$Domain_input"
             echo -e "${Info}你输入的IPv4域名为: ${RED_ground}${Domains[*]}${NC}"
             echo
@@ -465,6 +467,8 @@ set_domain(){
                     echo -e "${Info}跳过IPv6域名设置。"
                     echo
                 else
+                    # 替换中文逗号为英文逗号
+                    Domainv6_input="${Domainv6_input//，/,}"
                     IFS=',' read -ra Domainsv6 <<< "$Domainv6_input"
                     echo -e "${Info}你输入的IPv6域名为: ${RED_ground}${Domainsv6[*]}${NC}"
                     echo
