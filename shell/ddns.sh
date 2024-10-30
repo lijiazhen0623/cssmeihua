@@ -254,30 +254,26 @@ fi
 send_telegram_notification() {
     local message=""
 
-    # 检查 Domains 和 Domainsv6 是否相同
-    if [ "${Domains[*]}" == "${Domainsv6[*]}" ]; then
-        Domainsv6=()  # 替换为空数组
-    fi
-
-    # 遍历 Domains 数组，构建 IPv4 更新信息
-    for i in "${!Domains[@]}"; do
-        local domain="${Domains[i]}"
+    # 遍历 Domains 数组，构建域名部分
+    for domain in "${Domains[@]}"; do
         message+="$domain "
     done
 
     # 添加 IPv4 更新信息
     message+="IPv4更新 $Old_Public_IPv4 🔜 $Public_IPv4 。"
 
-    # 如果 ipv6_set 为 true，则遍历 Domainsv6 数组，构建 IPv6 更新信息
+    # 如果 ipv6_set 为 true，则添加 IPv6 更新信息
     if [ "$ipv6_set" == "true" ]; then
-        if [ ${#Domainsv6[@]} -gt 0 ]; then  # 只有在 Domainsv6 不为空时才执行
-            for i in "${!Domainsv6[@]}"; do
-                local domainv6="${Domainsv6[i]}"
+        # 检查 Domains 和 Domainsv6 是否相同
+        if [ "${Domains[*]}" != "${Domainsv6[*]}" ]; then
+            # 遍历 Domainsv6 数组，构建 IPv6 域名部分
+            for domainv6 in "${Domainsv6[@]}"; do
                 message+="$domainv6 "
             done
-            # 添加 IPv6 更新信息
-            message+="IPv6更新 $Old_Public_IPv6 🔜 $Public_IPv6 。"
         fi
+
+        # 添加 IPv6 更新信息
+        message+="IPv6更新 $Old_Public_IPv6 🔜 $Public_IPv6 。"
     fi
 
     # 发送通知
