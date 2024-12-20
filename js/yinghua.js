@@ -87,14 +87,14 @@ function getRandom(option) {
       ret = Math.random() * 6;
       break;
     case 'fnx':
-      random = -0.5 + Math.random() * 0.3;
+      random = -0.6 + Math.random() * 0.3;
       ret = function(x, y) {
         // return x + 0.5 * random - 1.7;
         return x + random * widthRatio;
       };
       break;
     case 'fny':
-      random = 1.1 + Math.random() * 0.4
+      random = 1.1 + Math.random() * 0.3
       ret = function(x, y) {
         return y + random * heightRatio;
       };
