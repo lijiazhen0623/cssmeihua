@@ -69,6 +69,10 @@ SakuraList.prototype.size = function() {
 
 function getRandom(option) {
   var ret, random;
+    // 获取屏幕宽高比
+  var widthRatio = window.innerWidth / 1920;  // 假设 1920 是一个标准桌面屏幕宽度
+  var heightRatio = window.innerHeight / 1080; // 假设 1080 是一个标准桌面屏幕高度
+  
   switch(option) {
     case 'x':
       ret = Math.random() * window.innerWidth;
@@ -85,13 +89,14 @@ function getRandom(option) {
     case 'fnx':
       random = -0.5 + Math.random() * 0.5;
       ret = function(x, y) {
-        return x + 0.5 * random - 1.7;
+        // return x + 0.5 * random - 1.7;
+        return x + random * widthRatio;
       };
       break;
     case 'fny':
       random = 1.3 + Math.random() * 0.5
       ret = function(x, y) {
-        return y + random;
+        return y + random * heightRatio;
       };
       break;
     case 'fnr':
