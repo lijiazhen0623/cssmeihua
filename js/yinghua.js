@@ -90,11 +90,11 @@ function getRandom(option) {
       random = -0.6 + Math.random() * 0.3;
       ret = function(x, y) {
         // return x + 0.5 * random - 1.7;
-        return x + random * widthRatio;
+        return x + (0.5 * random - 1.7) * widthRatio;
       };
       break;
     case 'fny':
-      random = 1.1 + Math.random() * 0.3
+      random = 1 + Math.random() * 0.3
       ret = function(x, y) {
         return y + random * heightRatio;
       };
