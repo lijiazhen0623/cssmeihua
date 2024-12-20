@@ -83,7 +83,7 @@ function getRandom(option) {
       ret = Math.random() * 6;
       break;
     case 'fnx':
-      random = -0.5 + Math.random() * 1;
+      random = -0.5 + Math.random() * 0.5;
       ret = function(x, y) {
         return x + 0.5 * random - 1.7;
       };
