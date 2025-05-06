@@ -1,9 +1,19 @@
-// 创建样式元素
-function createStyleElement() {
-    console.log('开始创建样式元素');
-    const style = document.createElement('style');
-    style.setAttribute('type', 'text/css');
-    style.innerHTML = `
+// 确保代码只执行一次
+if (!window.lanternInitialized) {
+    window.lanternInitialized = true;
+
+    // 创建样式元素
+    function createStyleElement() {
+        console.log('开始创建样式元素');
+        // 检查是否已经存在样式
+        if (document.getElementById('lantern-styles')) {
+            return;
+        }
+        
+        const style = document.createElement('style');
+        style.id = 'lantern-styles';
+        style.setAttribute('type', 'text/css');
+        style.innerHTML = `
         .vvhan-com-denglong4 {position: fixed; top: -40px; right: 150px; z-index: 9999; pointer-events: none;}
         .vvhan-com-denglong3 {position: fixed; top: -30px; right: 10px; z-index: 9999; pointer-events: none;}
         .vvhan-com-denglong1 {position: fixed; top: -40px; left: 150px; z-index: 9999; pointer-events: none;}
@@ -153,15 +163,21 @@ function createStyleElement() {
             100% {-webkit-transform: rotate(-10deg);}
         }
     `;
-    document.querySelector('head').appendChild(style);
-    console.log('样式元素创建完成');
-}
+        document.head.appendChild(style);
+        console.log('样式元素创建完成');
+    }
 
-// 创建灯笼HTML结构
-function createLanternHTML() {
-    console.log('开始创建灯笼HTML');
-    const div = document.createElement('div');
-    div.innerHTML = `
+    // 创建灯笼HTML结构
+    function createLanternHTML() {
+        console.log('开始创建灯笼HTML');
+        // 检查是否已经存在灯笼
+        if (document.getElementById('lantern-container')) {
+            return;
+        }
+
+        const div = document.createElement('div');
+        div.id = 'lantern-container';
+        div.innerHTML = `
         <div class="vvhan-com-denglong1">
             <div class="vvhan-com-denglong">
                 <div class="vvhan-com-sui"></div>
@@ -219,32 +235,49 @@ function createLanternHTML() {
             </div>
         </div>
     `;
-    document.body.appendChild(div);
-    console.log('灯笼HTML创建完成');
-}
+        document.body.appendChild(div);
+        console.log('灯笼HTML创建完成');
+    }
 
-// 初始化灯笼
-function initLantern() {
-    console.log('开始初始化灯笼');
-    createStyleElement();
-    createLanternHTML();
-    console.log('灯笼初始化完成');
-}
+    // 初始化灯笼
+    function initLantern() {
+        console.log('开始初始化灯笼');
+        try {
+            createStyleElement();
+            createLanternHTML();
+            console.log('灯笼初始化完成');
+        } catch (error) {
+            console.error('灯笼初始化失败:', error);
+        }
+    }
 
-// 控制台输出信息
-function showConsoleInfo() {
-    console.log('%c 作者信息', 'color: #ffffff; background: #6666FF; padding:5px');
-    console.log('%c Ljz博客 oini.de', 'color: #fadfa3; background: #030307; padding:5px');
-    console.log('%c 欢迎前来围观、吐槽、点赞、学习......', 'color: #fadfa3; background: #030307; padding:5px');
-    console.log();
-    console.log('%c -', 'color: #ffffff; background: #6666FF; padding:5px');
-    console.log('%c 风是自由的 希望你也是.', 'color: #fadfa3; background: #030307; padding:5px');
-    console.log();
-}
+    // 控制台输出信息
+    function showConsoleInfo() {
+        console.log('%c 作者信息', 'color: #ffffff; background: #6666FF; padding:5px');
+        console.log('%c Ljz博客 oini.de', 'color: #fadfa3; background: #030307; padding:5px');
+        console.log('%c 欢迎前来围观、吐槽、点赞、学习......', 'color: #fadfa3; background: #030307; padding:5px');
+        console.log();
+        console.log('%c -', 'color: #ffffff; background: #6666FF; padding:5px');
+        console.log('%c 风是自由的 希望你也是.', 'color: #fadfa3; background: #030307; padding:5px');
+        console.log();
+    }
 
-// 确保DOM加载完成后再执行
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM加载完成，开始初始化');
-    initLantern();
-    showConsoleInfo();
-}); 
+    // 确保在页面完全加载后执行
+    function initialize() {
+        console.log('准备初始化灯笼');
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('DOM加载完成，开始初始化');
+                initLantern();
+                showConsoleInfo();
+            });
+        } else {
+            console.log('DOM已加载，直接初始化');
+            initLantern();
+            showConsoleInfo();
+        }
+    }
+
+    // 立即执行初始化
+    initialize();
+} 
