@@ -1,5 +1,6 @@
 // 创建样式元素
 function createStyleElement() {
+    console.log('开始创建样式元素');
     const style = document.createElement('style');
     style.setAttribute('type', 'text/css');
     style.innerHTML = `
@@ -153,10 +154,12 @@ function createStyleElement() {
         }
     `;
     document.querySelector('head').appendChild(style);
+    console.log('样式元素创建完成');
 }
 
 // 创建灯笼HTML结构
 function createLanternHTML() {
+    console.log('开始创建灯笼HTML');
     const div = document.createElement('div');
     div.innerHTML = `
         <div class="vvhan-com-denglong1">
@@ -217,12 +220,15 @@ function createLanternHTML() {
         </div>
     `;
     document.body.appendChild(div);
+    console.log('灯笼HTML创建完成');
 }
 
 // 初始化灯笼
 function initLantern() {
+    console.log('开始初始化灯笼');
     createStyleElement();
     createLanternHTML();
+    console.log('灯笼初始化完成');
 }
 
 // 控制台输出信息
@@ -236,16 +242,9 @@ function showConsoleInfo() {
     console.log();
 }
 
-// 页面加载完成后初始化
-if (window.onload) {
-    const oldOnload = window.onload;
-    window.onload = function() {
-        initLantern();
-        oldOnload();
-    };
-} else {
-    window.onload = initLantern;
-}
-
-// 显示控制台信息
-showConsoleInfo(); 
+// 确保DOM加载完成后再执行
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM加载完成，开始初始化');
+    initLantern();
+    showConsoleInfo();
+}); 
