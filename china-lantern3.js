@@ -34,57 +34,69 @@
   styleInject(css_248z);
 
   var content = '<div class="lantern__warpper">
-  <div class="lantern__box">
+   <div class="lantern__box">
     <div class="lantern__line"></div>
     <div class="lantern__circle">
-      <div class="lantern__ellipse">
-        <div class="lantern__text">新</div></div>
+     <div class="lantern__ellipse">
+      <div class="lantern__text">
+       新
+      </div>
+     </div>
     </div>
     <div class="lantern__tail">
-      <div class="lantern__rect"></div>
-      <div class="lantern__junction"></div>
+     <div class="lantern__rect"></div>
+     <div class="lantern__junction"></div>
     </div>
+   </div>
   </div>
-</div>
-<div class="lantern__warpper">
-  <div class="lantern__box">
+  <div class="lantern__warpper">
+   <div class="lantern__box">
     <div class="lantern__line"></div>
     <div class="lantern__circle">
-      <div class="lantern__ellipse">
-        <div class="lantern__text">年</div></div>
+     <div class="lantern__ellipse">
+      <div class="lantern__text">
+       年
+      </div>
+     </div>
     </div>
     <div class="lantern__tail">
-      <div class="lantern__rect"></div>
-      <div class="lantern__junction"></div>
+     <div class="lantern__rect"></div>
+     <div class="lantern__junction"></div>
     </div>
+   </div>
   </div>
-</div>
-<div class="lantern__warpper lantern__secondary">
-  <div class="lantern__box">
+  <div class="lantern__warpper lantern__secondary">
+   <div class="lantern__box">
     <div class="lantern__line"></div>
     <div class="lantern__circle">
-      <div class="lantern__ellipse">
-        <div class="lantern__text">快</div></div>
+     <div class="lantern__ellipse">
+      <div class="lantern__text">
+       快
+      </div>
+     </div>
     </div>
     <div class="lantern__tail">
-      <div class="lantern__rect"></div>
-      <div class="lantern__junction"></div>
+     <div class="lantern__rect"></div>
+     <div class="lantern__junction"></div>
     </div>
+   </div>
   </div>
-</div>
-<div class="lantern__warpper lantern__secondary">
-  <div class="lantern__box">
+  <div class="lantern__warpper lantern__secondary">
+   <div class="lantern__box">
     <div class="lantern__line"></div>
     <div class="lantern__circle">
-      <div class="lantern__ellipse">
-        <div class="lantern__text">乐</div></div>
+     <div class="lantern__ellipse">
+      <div class="lantern__text">
+       乐
+      </div>
+     </div>
     </div>
     <div class="lantern__tail">
-      <div class="lantern__rect"></div>
-      <div class="lantern__junction"></div>
+     <div class="lantern__rect"></div>
+     <div class="lantern__junction"></div>
     </div>
-  </div>
-</div>';
+   </div>
+  </div>';
 
   function createElement() {
     var div = document.createElement('div');
